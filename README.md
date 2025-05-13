@@ -109,7 +109,7 @@ These measures are to prevent exposure of certain proprietary algorithms and pri
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). You may not use the obfuscated core logic for commercial purposes without express permission.
+This project is licensed under an [ARR License](LICENSE) (All Rights Reserved). You may not use the obfuscated core logic for commercial purposes without express permission.
 
 ---
 
