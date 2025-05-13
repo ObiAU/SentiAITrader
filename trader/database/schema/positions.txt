@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS positions (
+    position_id SERIAL PRIMARY KEY,
+    id REAL NOT NULL,
+    entry_time TIMESTAMPTZ NOT NULL,
+    last_trade_time TIMESTAMPTZ NOT NULL,
+    status TEXT NOT NULL,           -- "open", "closed"
+    token_address TEXT NOT NULL,
+    ticker_symbol TEXT NOT NULL,
+    token_name TEXT NOT NULL,
+    blockchain TEXT NOT NULL,               -- "solana"
+    amount_holding REAL NOT NULL,
+    amount_sold REAL NOT NULL,              -- number of tokens sold so far
+    partial_sold_cumulative REAL NOT NULL, -- fraction sold so far
+    stoploss_price REAL NOT NULL,
+    entry_price REAL NOT NULL,
+    -- last_price REAL NOT NULL,
+    max_recorded_price REAL NOT NULL,
+    realized_pnl REAL NOT NULL,
+    type TEXT NOT NULL,               -- e.g., "limit", "market", "other"
+    bot_executed TEXT NOT NULL     -- "sniper", "sentitrader"
+);

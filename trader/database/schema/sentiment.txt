@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS sentiment (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL,
+    ticker_symbol TEXT NOT NULL,
+    token_name TEXT NOT NULL,
+    token_address TEXT NOT NULL,
+    sentiment_score REAL NOT NULL,
+    overall TEXT NOT NULL,            -- e.g., "Positive", "Negative", "Neutral"
+    warnings TEXT                     -- optional field for disclaimers/warnings
+);

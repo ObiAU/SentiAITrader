@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS trades (
+    position_id SERIAL PRIMARY KEY,
+    id REAL NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    token_address TEXT NOT NULL,
+    ticker_symbol TEXT NOT NULL,
+    token_name TEXT NOT NULL,
+    blockchain TEXT NOT NULL,               -- "solana"
+    transaction_signature TEXT NOT NULL,
+    amount REAL NOT NULL,
+    entry_exit_price REAL NOT NULL,     -- price of coin at entry or exit
+    buy_sell TEXT NOT NULL,           -- or "buy" or "sell"
+    type TEXT NOT NULL,               -- e.g., "limit", "market", "other"
+    bot_executed TEXT NOT NULL     -- "sniper", "sentitrader"
+    wallet_address TEXT NOT NULL,
+);

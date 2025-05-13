@@ -1,0 +1,12 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitepsace
+        exclude: ^requirements\.txt$
+      - id: check-yaml
+        exclude: ^requirements\.txt$
+      - id: end-of-file-fixer
+        exclude: ^requirements\.txt$
+      - id: debug-statements
+        exclude: ^requirements\.txt$

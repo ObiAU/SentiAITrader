@@ -1,0 +1,69 @@
+import json, os
+from dotenv import find_dotenv, load_dotenv
+
+_ = load_dotenv(find_dotenv())
+
+REQUIRED_ENV_VARS = [
+    "OPENAI_API_KEY",
+    "TWITTER_API_KEY",
+    "TWITTER_API_SECRET",
+    "TWITTER_ACCESS_TOKEN",
+    "TWITTER_ACCESS_TOKEN_SECRET",
+    "BIRDEYE_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "DISCORD_BOT_TOKEN",
+    "RPC_URL",
+    "PRIVATE_KEY_BASE58",
+    "SNIPER_WALLET_ADDRESS",
+    "SNIPER_KEY_BASE58",
+    "sentitrader_WALLET_ADDRESS",
+    "sentitrader_KEY_BASE58",
+    "CRITIQUE_SECRET",
+    "REDDIT_USER_AGENT",
+    "REDDIT_CLIENT_ID",
+    "REDDIT_CLIENT_SECRET",
+    "SUPABASE_URL",
+    "SUPABASE_KEY",
+    "GCLOUD_CLIENT_SECRET",
+    "GCLOUD_TOKEN",
+    "GCLOUD_REFRESH_TOKEN",
+    "SPREADSHEET_ID",
+    "GCLOUD_CLIENT_ID",
+    "GCLOUD_TOKEN_EXPIRY",
+]
+
+MISSING_VARS = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+
+if MISSING_VARS:
+    raise EnvironmentError(
+        f"Missing required environment variables: {', '.join(MISSING_VARS)}"
+    )
+
+class Config:
+    RPC_URL = os.getenv("RPC_URL")
+    PRIVATE_KEY_BASE58 = os.getenv("PRIVATE_KEY_BASE58")
+    WALLET_ADDRESS = os.getenv("WALLET_ADDRESS")
+    BIRDEYE_API_KEY = os.getenv("BIRDEYE_API_KEY")
+    TWITTER_API_KEY = os.getenv("TWITTER_API_KEY")
+    TWITTER_API_SECRET = os.getenv("TWITTER_API_SECRET")
+    TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
+    TWITTER_ACCESS_TOKEN_SECRET = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    SNIPER_WALLET_ADDRESS = os.getenv("SNIPER_WALLET_ADDRESS")
+    SNIPER_KEY_BASE58 = os.getenv("SNIPER_KEY_BASE58")
+    SENTITRADER_WALLET_ADDRESS = os.getenv("SENTITRADER_WALLET_ADDRESS")
+    SENTITRADER_KEY_BASE58 = os.getenv("SENTITRADER_KEY_BASE58")
+    DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+    DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+    CRITIQUE_SECRET = os.getenv("CRITIQUE_SECRET")
+    REDDIT_USER_AGENT = os.getenv("REDDIT_USER_AGENT")
+    REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID")
+    REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    GCLOUD_CLIENT_SECRET = os.getenv("GCLOUD_CLIENT_SECRET")
+    GCLOUD_TOKEN = os.getenv("GCLOUD_TOKEN")
+    GCLOUD_REFRESH_TOKEN = os.getenv("GCLOUD_REFRESH_TOKEN")
+    SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
+    GCLOUD_CLIENT_ID = os.getenv("GCLOUD_CLIENT_ID")
+    GCLOUD_TOKEN_EXPIRY = os.getenv("GCLOUD_TOKEN_EXPIRY")

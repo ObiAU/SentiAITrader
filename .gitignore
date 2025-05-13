@@ -1,0 +1,23 @@
+# tests
+tests/
+docs
+*test
+
+# misc
+__pycache__
+*venv
+*env*
+legacy*
+
+# obfuscated files
+store/
+local*
+*secrets*
+cloud_trader_credentials.json
+top_traders.py
+postgresql.py
+templates/
+TOR_SETUP.md
+dexscreener*
+analysis*
+hodl_*

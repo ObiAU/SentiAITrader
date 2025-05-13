@@ -1,0 +1,16 @@
+
+version: '0.1.2'
+services:
+  sniper:
+    build:
+      context: .
+      dockerfile: Dockerfile.sniper
+    image: sniper-image
+    container_name: sniper_container
+
+  culttrader:
+    build:
+      context: .
+      dockerfile: Dockerfile.culttrader
+    image: culttrader-image
+    container_name: culttrader_container

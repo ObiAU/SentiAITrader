@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS cultism (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL,
+    ticker_symbol TEXT NOT NULL,
+    token_name TEXT NOT NULL,
+    token_address TEXT NOT NULL,
+    post_ids TEXT[] NOT NULL,
+    cult_score REAL NOT NULL,
+    overall_score REAL NOT NULL,
+    notes TEXT NOT NULL           
+);

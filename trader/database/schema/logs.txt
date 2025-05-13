@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS logs (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL,
+    log_level TEXT,                   -- e.g., "DEBUG", "INFO", "WARN", "ERROR"
+    message TEXT                      -- the actual log message or JSON data
+);
