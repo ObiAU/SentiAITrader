@@ -1,4 +1,4 @@
-# SentiAITrade + Sniper bots
+# AI-Powered Algorithmic Trading System
 
 This repository contains a dual‑service Docker setup for two TA and AI-powered crypto trading bots:
 
