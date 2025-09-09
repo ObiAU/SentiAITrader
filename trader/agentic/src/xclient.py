@@ -1,5 +1,10 @@
-import requests, requests.auth, base64, datetime, time
+import base64
+import datetime
+import time
 from datetime import timedelta, datetime
+
+import requests
+import requests.auth
 
 from trader.config import Config
 

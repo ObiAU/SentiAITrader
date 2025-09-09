@@ -1,7 +1,15 @@
-import requests, requests.auth, os, base64, datetime, time, json, logging
+import base64
+import datetime
+import json
+import logging
+import os
+import time
 from datetime import timedelta, datetime
-from pydantic import BaseModel
 from typing import List, Optional
+
+import requests
+import requests.auth
+from pydantic import BaseModel
 
 from trader.agentic.utils import *
 from trader.config import Config

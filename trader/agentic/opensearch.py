@@ -1,6 +1,7 @@
-import requests
-from typing import List
 from datetime import datetime
+from typing import List
+
+import requests
 
 from trader.agentic.prompts import PromptHandler
 from trader.config import Config

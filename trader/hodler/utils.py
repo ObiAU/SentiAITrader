@@ -1,6 +1,12 @@
-import os, sys, logging, json, pandas as pd, numpy as np
+import json
+import logging
+import os
+import sys
 from datetime import datetime, timedelta
 from typing import Tuple
+
+import numpy as np
+import pandas as pd
 
 ## passing from wallet / cache to sentiment agent. Need to pass both ticker symbol and token name.
 # e.g. reddit search will search both ticker and token name. Also can attempt subreddit search of token name (see what comes up)

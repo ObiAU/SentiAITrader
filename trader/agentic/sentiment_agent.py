@@ -1,17 +1,18 @@
-import os, sys, json, logging
-from pydantic import BaseModel, Field
+import json
+import logging
+import os
+import sys
 from datetime import datetime
 from typing import List, Optional
 
+from pydantic import BaseModel, Field
+
+from agentic.opensearch import CritiqueSearch
 from agentic.prompts import PromptHandler
+from agentic.utils import get_structured_response
+from trader.agentic.data_models import SentimentResult, Critique
 from trader.agentic.src.praw_sentiment import PrawRedditClient
 from trader.agentic.src.xclient import XClient
-from agentic.opensearch import CritiqueSearch
-from trader.agentic.data_models import (
-                    SentimentResult,
-                    Critique
-                    )
-from agentic.utils import get_structured_response
 
 class Tweet(BaseModel):
     """

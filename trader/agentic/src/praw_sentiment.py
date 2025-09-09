@@ -1,10 +1,14 @@
-import os, sys, time, praw
+import os
+import sys
+import time
 from typing import Optional, List, Dict
+
+import praw
 from praw.models import Subreddit, Submission, Comment
 from pydantic import BaseModel, Field
 
-from trader.agentic.utils import get_structured_response
 from trader.agentic.prompts import PromptHandler
+from trader.agentic.utils import get_structured_response
 from trader.config import Config
 # ---------------------------------------------------------------------------
 # DATA MODELS (Pydantic) to store or serialize as needed

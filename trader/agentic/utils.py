@@ -1,8 +1,12 @@
-import time, requests, base64, logging
-from requests.exceptions import RequestException
+import base64
+import logging
+import time
+from typing import Literal
+
+import requests
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from typing import Literal
+from requests.exceptions import RequestException
 
 from trader.agentic.prompts import PromptHandler
 

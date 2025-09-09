@@ -1,14 +1,19 @@
-import requests, requests.auth, sys, os, logging
-from typing import List, Optional, Dict
-from pydantic import BaseModel, Field
+import logging
+import os
+import sys
 from datetime import datetime
-from openai import OpenAI
+from typing import List, Optional, Dict
 
-from trader.agentic.src.reddit import RedditClient
-from trader.agentic.src.subreddit_scout import SubredditScout
+import requests
+import requests.auth
+from openai import OpenAI
+from pydantic import BaseModel, Field
+
 from trader.agentic.data_models import *
 from trader.agentic.opensearch import CritiqueSearch
 from trader.agentic.prompts import PromptHandler
+from trader.agentic.src.reddit import RedditClient
+from trader.agentic.src.subreddit_scout import SubredditScout
 
 
 

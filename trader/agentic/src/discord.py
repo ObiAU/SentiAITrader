@@ -1,6 +1,7 @@
+from typing import List, Optional
+
 import discord
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 from trader.config import Config
 

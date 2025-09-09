@@ -1,7 +1,10 @@
-import os, logging, sys
-from typing import Any, Dict, List
-from supabase import create_client, Client
+import logging
+import os
+import sys
 from datetime import datetime
+from typing import Any, Dict, List
+
+from supabase import create_client, Client
 
 from trader.config import Config
 
