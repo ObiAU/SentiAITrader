@@ -80,7 +80,7 @@ class SubredditScout:
             found_subs.extend(raw_subs)
 
         if not found_subs:
-            print("No subreddits found.")
+            logging.warning("No subreddits found.")
             return None
 
         unique_subs_dict = {}
@@ -101,12 +101,12 @@ class SubredditScout:
 
 
         if not sub_info_list:
-            print("No valid subreddits to evaluate.")
+            logging.warning("No valid subreddits to evaluate.")
             return None
 
         concatenated_info = "\n".join(sub_info_list)
 
-        print(f"Concatenated info: {concatenated_info[:400]}")
+        logging.debug(f"Concatenated info: {concatenated_info[:400]}")
 
         chosen_sub = self.run_ai_scout(ticker=token_symbol, token_name=token_name, concat=concatenated_info)
         return chosen_sub.name
@@ -116,6 +116,6 @@ if __name__ == "__main__":
     scout = SubredditScout()
     found_sub = scout.find_subreddit_ai("GIGA", "gigachad", 5)
     if found_sub:
-        print(f"Found subreddit: {found_sub}")
+        logging.info(f"Found subreddit: {found_sub}")
     else:
-        print("No matching subreddit found.")
+        logging.warning("No matching subreddit found.")

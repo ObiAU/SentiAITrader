@@ -215,7 +215,7 @@ class CultAgent(RedditClient):
 
         posts_data = search_json['data'].get('children', [])
         if not posts_data:
-            print("No posts found.")
+            logging.warning("No posts found.")
             return []
 
         results: List[CultinessResult] = []
@@ -228,7 +228,7 @@ class CultAgent(RedditClient):
             if not post_id:
                 continue
 
-            print(f"\n[AnalyzePosts] -> Processing post #{idx+1} => ID={post_id}")
+            logging.info(f"[AnalyzePosts] -> Processing post #{idx+1} => ID={post_id}")
 
             post_title = post_info.get("title", "")
             post_score = post_info.get("score", "")
@@ -243,7 +243,7 @@ class CultAgent(RedditClient):
             )
 
             if len(json_data) < 2:
-                print("No comments found for this post.")
+                logging.warning("No comments found for this post.")
                 post_section = (
                     f"--- Post #{idx+1} / ID={post_id} ---\n"
                     f"Title: {post_title}\n"
@@ -261,7 +261,7 @@ class CultAgent(RedditClient):
                 top_level_comments = self.build_comment_hierarchy(parsed_comments, post_id)
             
             except Exception as e:
-                print(f"Failed to extract post comments. Error: {e}")
+                logging.error(f"Failed to extract post comments. Error: {e}")
                 return
 
             comments_text = []
@@ -283,12 +283,11 @@ class CultAgent(RedditClient):
 
             all_posts.append(post_section)
 
-            print(f"Combined comments found for post {post_id}:\n {comments_text_str}")
+            logging.debug(f"Combined comments found for post {post_id}: {comments_text_str[:200]}...")
 
         combined_text = "\n\n".join(all_posts)
 
-        print("\n\n=== Full Subreddit Text for Single Call ===\n")
-        print(combined_text)
+        logging.debug(f"Full subreddit text for single call: {combined_text[:500]}...")
 
         cultiness_result = self.run_cult_agent(
             subreddit=subreddit,
@@ -367,11 +366,10 @@ if __name__ == "__main__":
     token_name = "Moo Deng"
     num_holders = "50000"
 
-    # print(f"Found token: {ticker}")
 
     # subreddit_name = "gigachadmemecoin"
     subreddit_name = scout.find_subreddit_ai(ticker, token_name)
-    print(f"Found subreddit: {subreddit_name}")
+    logging.info(f"Found subreddit: {subreddit_name}")
 
     my_post_limit = 2
     my_comment_limit = 5
@@ -388,7 +386,6 @@ if __name__ == "__main__":
     )
     r = results
     # for i, r in enumerate(results, start=1):
-        # print(f"\n=== Cultiness Result #{i} ===")
-    print(f"Score: {r.score}")
-    print(f"Analysis: {r.analysis}")
-    print(f"Warnings: {r.warnings}")
+    logging.info(f"Score: {r.score}")
+    logging.info(f"Analysis: {r.analysis}")
+    logging.info(f"Warnings: {r.warnings}")

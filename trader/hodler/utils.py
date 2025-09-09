@@ -106,18 +106,18 @@ def scout_tokens(max_cache_age_days=15) -> list:
         if scout_time_str:
             scout_time = datetime.fromisoformat(scout_time_str)
             if datetime.now() - scout_time < timedelta(days=max_cache_age_days):
-                print("Using cached tokens (cache is still valid).")
+                logging.info("Using cached tokens (cache is still valid).")
                 return cached_tokens
             else:
-                print("Cache is older than 15 days. Refreshing.")
+                logging.info("Cache is older than 15 days. Refreshing.")
         else:
-            print("No scout_time found in cache. Refreshing.")
+            logging.info("No scout_time found in cache. Refreshing.")
     else:
-        print("No cache file found. Generating new cache.")
+        logging.info("No cache file found. Generating new cache.")
 
 
     if not os.path.exists(HODLERS_FILE):
-        print(f"Could not find file {HODLERS_FILE}.")
+        logging.error(f"Could not find file {HODLERS_FILE}.")
         return []
 
     with open(HODLERS_FILE, "r") as f:
@@ -126,7 +126,7 @@ def scout_tokens(max_cache_age_days=15) -> list:
             wallet_addresses = list(hodlers_data.values())
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing big_hodlers.json. Error: {e}")
+            logging.error(f"Error parsing big_hodlers.json. Error: {e}")
             return []
 
     new_token_list = []
@@ -147,10 +147,10 @@ def scout_tokens(max_cache_age_days=15) -> list:
     with open(CACHE_FILE, "w") as f:
         json.dump(cache_data, f, indent=2)
 
-    print("Refreshed and cached new token list.")
+    logging.info("Refreshed and cached new token list.")
     return new_token_list
 
 
 if __name__ == "__main__":
     tokens = scout_tokens(max_cache_age_days=15)
-    print(f"Found {len(tokens)} tokens.")
+    logging.info(f"Found {len(tokens)} tokens.")

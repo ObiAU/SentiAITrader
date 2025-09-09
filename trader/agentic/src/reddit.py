@@ -227,7 +227,6 @@ class RedditClient:
 
         resp.raise_for_status()
 
-        # print(f"Found some results for {query}: {resp.json()}")
 
         search_response = self.get_subreddit_list(resp.json())
         return search_response
@@ -248,7 +247,7 @@ class RedditClient:
                 allow_chat_post_creation=sub_info.get("allow_chat_post_creation", False),
                 allow_images=sub_info.get("allow_images", False),
             ))
-            print(f"Individual results: {sub_info}")
+            logging.debug(f"Individual results: {sub_info}")
 
         return results
     
@@ -273,16 +272,12 @@ if __name__ == "__main__":
     rclient = RedditClient()
     ticker = "BTC"
     # reddits = rclient.search("Bitcoin")
-    # print("Site-wide search for 'Bitcoin':", reddits, flush=True)
 
     subreddit_search_results = rclient.search_subreddit("memecoins", "Doge Jones Industrial Average - DJI", "new", 2)
-    print("Subreddit search results (r/CryptoCurrency):", subreddit_search_results, flush=True)
+    logging.info(f"Subreddit search results (r/CryptoCurrency): {len(subreddit_search_results)}")
 
     # hot_posts = rclient.get_subreddit_hot("CryptoCurrency")
-    # print("Hot posts in r/CryptoCurrency:", hot_posts, flush=True)
 
     # top_posts = rclient.get_subreddit_top("CryptoCurrency", time_filter="week")
-    # print("Top posts in r/CryptoCurrency (this week):", top_posts, flush=True)
 
     # new_posts = rclient.get_subreddit_new("CryptoCurrency")
-    # print("New posts in r/CryptoCurrency:", new_posts, flush=True)

@@ -271,7 +271,7 @@ def scout_tokens(
         trader = active_traders[idx]
 
         if isinstance(result, Exception):
-            print(f"Error fetching transactions for trader {trader}: {result}")
+            logging.error(f"Error fetching transactions for trader {trader}: {result}")
             continue
         
         valid_addresses, tx_details = result
@@ -284,7 +284,7 @@ def scout_tokens(
             if random.random() < retention_probability:
                 retained_traders.append(trader)
 
-    print(f"Unique tokens collected: {len(token_addresses)}")
+    logging.info(f"Unique tokens collected: {len(token_addresses)}")
 
     # --------------------------------------------------------
     # Step 4: Filter tokens by social info
@@ -303,15 +303,10 @@ def scout_tokens(
                 if dex_data["has_website"] or dex_data["has_twitter"] or dex_data["has_telegram"]:
                     social_tokens.append(address)
                 else:
-                    print(
-                       f"Skipped token {address} (no website/Twitter/Telegram). "
-                       f"(Found: website={dex_data['has_website']}, "
-                       f"twitter={dex_data['has_twitter']}, "
-                       f"telegram={dex_data['has_telegram']})"
-                    )
+                    logging.info(f"Skipped token {address} (no website/Twitter/Telegram). Found: website={dex_data['has_website']}, twitter={dex_data['has_twitter']}, telegram={dex_data['has_telegram']}")
                     pass
             except Exception as e:
-                print(f"Error checking DexScreener for token {address}: {e}")
+                logging.error(f"Error checking DexScreener for token {address}: {e}")
 
     # --------------------------------------------------------
     # Step 5: Filter tokens by security info
@@ -329,7 +324,6 @@ def scout_tokens(
             try:
                 address, security_info = future.result()
                 if not security_info:
-                    # print(f"Skipped token {address} due to missing security info.")
                     continue
 
                     # filter on top10 holder % limit
@@ -342,7 +336,7 @@ def scout_tokens(
                 if creation_time:
                     creation_datetime = datetime.fromtimestamp(creation_time, tz=timezone.utc)
 
-                    print(f"Token {address} creation time: {creation_datetime}")
+                    logging.info(f"Token {address} creation time: {creation_datetime}")
 
                     current_time = datetime.now(timezone.utc)
 
@@ -354,9 +348,9 @@ def scout_tokens(
 
                     # Must be within [current_time - X days, current_time - Y hours]
                     if not (min_allowed_creation <= creation_datetime <= max_allowed_creation):
-                        print(f"Skipped token {address} due to creation time.")
+                        logging.info(f"Skipped token {address} due to creation time.")
                         continue
-                    print(f"Token {address} passed creation time check.")
+                    logging.info(f"Token {address} passed creation time check.")
                 else:
                     continue
 
@@ -368,9 +362,9 @@ def scout_tokens(
                 security_info_map[address] = security_info
 
             except Exception as e:
-                print(f"Error fetching security info for token {address}: {e}")
+                logging.error(f"Error fetching security info for token {address}: {e}")
 
-    print(f"Tokens remaining after security filters: {len(filtered_tokens)}")
+    logging.info(f"Tokens remaining after security filters: {len(filtered_tokens)}")
 
     # --------------------------------------------------------
     # Step 6: Fetch token overview and apply additional filters
@@ -415,7 +409,7 @@ def scout_tokens(
                 filtered_overviews.append((address, overview))
 
             except Exception as e:
-                print(f"Error fetching token overview for token {address}: {e}")
+                logging.error(f"Error fetching token overview for token {address}: {e}")
 
     # --------------------------------------------------
     # 6b) Perform balance-change checks sequentially
@@ -446,11 +440,11 @@ def scout_tokens(
             )
 
             if status != "finalized":
-                print(f"Error fetching balance change for token {address}: {status}")
+                logging.error(f"Error fetching balance change for token {address}: {status}")
                 continue
 
             if balance_change < 0:
-                print(f"Trader {trader} sold some of token {address} since buying. Skipping.")
+                logging.info(f"Trader {trader} sold some of token {address} since buying. Skipping.")
                 continue
 
             # If still holding, prepare the metadata object
@@ -468,24 +462,17 @@ def scout_tokens(
             final_preanalysis_tokens.append(token_metadata)
 
         except Exception as e:
-            print(f"Error fetching balance change for token {address}: {e}")
+            logging.error(f"Error fetching balance change for token {address}: {e}")
 
-    print(f"Tokens passing all pre-analysis filters: {len(final_preanalysis_tokens)}")
-
-
+    logging.info(f"Tokens passing all pre-analysis filters: {len(final_preanalysis_tokens)}")
 
     final_analyzed_tokens = final_preanalysis_tokens
     # --------------------------------------------------------
     # Print final results - NB You must run the analysis in the bot code loop to determine a good entry
     # --------------------------------------------------------
-    print(f"\n=== Final Tokens After ALL Filters & Analysis: {len(final_analyzed_tokens)} ===")
-    # for t in final_analyzed_tokens:
-    #     print(f"\nToken Address: {t.address} | Market Cap: {t.mc}")
-    #     print("Analysis Results:")
-    #     for k, v in t.analysis_results.items():
-    #         print(f"   {k}: {v}")
+    logging.info(f"Final tokens after all filters & analysis: {len(final_analyzed_tokens)}")
 
-    print(f"\nTotal Time Taken: {datetime.now() - start_time}")
+    logging.info(f"Total time taken: {datetime.now() - start_time}")
 
     return final_analyzed_tokens
 
@@ -495,7 +482,4 @@ def scout_tokens(
 if __name__ == "__main__":
     # scout_tokens()
     res = fetch_token_overview_and_metadata("ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY") ## moodeng addr
-    # print(res.address)
-    # print(res.name)
-    # print(res.symbol)
-    print(res)
+    logging.info(f"Result: {res}")

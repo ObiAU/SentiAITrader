@@ -128,7 +128,7 @@ class SentimentAgent:
             token_specific_sub  
         ]
 
-        print(f"Searching relevant media...", flush=True)
+        logging.info("Searching relevant media...")
         # maybe have it run on each source separately -- perform bias factor calc manually
         try:
             all_reddit_posts = []
@@ -163,19 +163,18 @@ class SentimentAgent:
  
                 # # Critique
                 # filtered = self.critique_context(input_payload.ticker, new_posts)
-                # print(f"After critique, we have {len(filtered)} relevant posts.")
                 # relevant_posts.extend(filtered)
                 # attempts += 1
         
         except Exception as e:
-            print(f"Error building post data: {e}")
+            logging.error(f"Error building post data: {e}")
 
         try:
-            print(f"Critiquing context...", flush=True)
+            logging.info("Critiquing context...")
             relevant_posts = self.critique_context(input_payload.ticker, all_reddit_posts)
 
         except Exception as e:
-            print(f"Error critiquing context: {e}")
+            logging.error(f"Error critiquing context: {e}")
             relevant_posts = all_reddit_posts
 
         return ModelInsert(
@@ -217,7 +216,7 @@ class SentimentAgent:
 
          # fallback 2
         except json.JSONDecodeError as e:
-            print(f"Issue extracting relevant posts. Error: {e}")
+            logging.error(f"Issue extracting relevant posts. Error: {e}")
             return posts
 
         relevant_posts = []
@@ -255,7 +254,7 @@ class SentimentAgent:
         tweets_text = "\n".join([f"[Tweet: {t.text}]" for t in feed.tweets])
         reddit_text = "\n".join([f"[Reddit: {r.concat}]" for r in feed.reddit_posts])
 
-        print("Running opensearch..")
+        logging.info("Running opensearch..")
         logging.info(f"Running opensearch..")
         search_results = self.opensearch(feed.ticker, feed.token_name)
 
@@ -292,7 +291,7 @@ class SentimentAgent:
         
         except Exception as e:
             
-            print(f"Error gathering social data: {e}")
+            logging.error(f"Error gathering social data: {e}")
             feed = ModelInsert(
                 ticker=input_payload.ticker,
                 token_name=input_payload.token_name,
@@ -340,16 +339,13 @@ if __name__ == "__main__":
 
     result: SentimentAgentOutput = agent.analyze_ticker_sentiment(sentiment_input)    
 
-    # print("TICKER:", result.feed.ticker)
-    # print("==== TWEETS ====")
     # for tw in result.feed.tweets:
-        # print(" -", tw.text, tw.created_at)
-    print("==== REDDIT ====")
+    logging.info("==== REDDIT ====")
     for rp in result.feed.reddit_posts:
-        print(" -", rp.concat, rp.created_at, rp.upvotes)
+        logging.info(f" - {rp.concat[:100]}... {rp.created_at} {rp.upvotes}")
 
-    print("==== SENTIMENT ANALYSIS ====")
-    print(" Overall:", result.sentiment.overall)
-    print(" Score:", result.sentiment.score)
-    print(" Confidence:", result.sentiment.confidence)
-    print(" Warnings:", result.sentiment.warnings)
+    logging.info("==== SENTIMENT ANALYSIS ====")
+    logging.info(f" Overall: {result.sentiment.overall}")
+    logging.info(f" Score: {result.sentiment.score}")
+    logging.info(f" Confidence: {result.sentiment.confidence}")
+    logging.info(f" Warnings: {result.sentiment.warnings}")

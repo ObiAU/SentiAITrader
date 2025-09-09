@@ -373,7 +373,7 @@ class BirdEyeClient:
                     token_balance = float(token.balance) / (10 ** token_decimals)
                     return token_balance
         except Exception as e:
-            print(f"Error fetching balances for wallet {wallet_address}: {e}")
+            logging.error(f"Error fetching balances for wallet {wallet_address}: {e}")
 
         # Return 0.0 if the token address is not found or an error occurs
         return 0.0
@@ -386,7 +386,7 @@ class BirdEyeClient:
             balances = self.fetch_balances(wallet_address)
             return balances
         except Exception as e:
-            print(f"Error fetching balances for wallet {wallet_address}: {e}")
+            logging.error(f"Error fetching balances for wallet {wallet_address}: {e}")
 
         # Return 0.0 if the token address is not found or an error occurs
         return 0.0
@@ -502,10 +502,10 @@ class BirdEyeClient:
                 response = requests.get(url, headers=self._headers())
 
                 if not response.text.strip():
-                    print(f"Empty response for offset {offset}. Skipping.")
+                    logging.warning(f"Empty response for offset {offset}. Skipping.")
                     continue
                 if "application/json" not in response.headers.get("Content-Type", ""):
-                    print(f"Unexpected Content-Type for offset {offset}: {response.headers.get('Content-Type')}")
+                    logging.warning(f"Unexpected Content-Type for offset {offset}: {response.headers.get('Content-Type')}")
                     continue
 
                 response.raise_for_status()
@@ -513,10 +513,10 @@ class BirdEyeClient:
                 data = response.json()
                 results.extend([Trader(**item) for item in data["data"].get("items", [])])
             except requests.exceptions.JSONDecodeError:
-                print(f"Failed to parse JSON for offset {offset}: {response.text[:500]}")
+                logging.error(f"Failed to parse JSON for offset {offset}: {response.text[:500]}")
                 continue
             except Exception as e:
-                print(f"Error fetching data for offset {offset}: {e}")
+                logging.error(f"Error fetching data for offset {offset}: {e}")
                 continue
         return results
 
@@ -550,7 +550,7 @@ class BirdEyeClient:
             data = response.json()
             return TokenSecurityInfo(**data["data"])
         except requests.exceptions.JSONDecodeError:
-            print(f"Failed to parse JSON response for address {address}: {response.text[:500]}")
+            logging.error(f"Failed to parse JSON response for address {address}: {response.text[:500]}")
             return None
 
 
@@ -624,7 +624,6 @@ class BirdEyeClient:
 
         try:
             data = response.json()
-            # print(f"New Holders Data:\n {data}")
             if data.get("success") and "items" in data.get("data", {}):
                 transactions = data["data"]["items"]
                 unique_owners_24h = {tx["owner"] for tx in transactions if "owner" in tx}
@@ -672,7 +671,7 @@ class BirdEyeClient:
             params["time_to"] = time_to
 
         url = self._create_url("defi/ohlcv", **params)
-        print(f"Fetching candles via {url}")
+        logging.info(f"Fetching candles via {url}")
 
         # Make the request
         response = requests.get(url, headers=self._headers())
@@ -732,7 +731,6 @@ class BirdEyeClient:
         try:
             resp = requests.get(base_url, headers=self._headers(), params=params, timeout=10)
             data = resp.json()
-            # print(f"Data: {data}")
             if data.get("success"):
                 items = data["data"]["items"]
                 # Sort by unixTime asc
@@ -803,14 +801,14 @@ def tester():
             close=df['close'], 
             window=window
             )
-        print(f"ADX indicator: {adx_indicator}")
+        logging.info(f"ADX indicator: {adx_indicator}")
         try:
             adx = adx_indicator.adx().iloc[-1]
-            print(f"ADX: {adx}")
+            logging.info(f"ADX: {adx}")
             di_plus = adx_indicator.adx_pos().iloc[-1]
-            print(f"DI+: {di_plus}")
+            logging.info(f"DI+: {di_plus}")
             di_minus = adx_indicator.adx_neg().iloc[-1]
-            print(f"DI-: {di_minus}")
+            logging.info(f"DI-: {di_minus}")
         except Exception as e:
             logging.error(f"Error calculating ADX for market trend: {e}")
             market_trend = "none"
@@ -825,7 +823,7 @@ def tester():
         else:
             market_trend = "none"
 
-        print(market_trend)
+        logging.info(f"Market trend: {market_trend}")
     
     update_market_trend()
 
