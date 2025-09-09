@@ -46,7 +46,7 @@ def execute_sql_query(query: str) -> List[Dict[str, Any]]:
         response = supabase.rpc("execute_dynamic_query", {"query": query}).execute()
         return response.data
     except Exception as e:
-        print(f"Error executing SQL query: {e}")
+        logging.error(f"Error executing SQL query: {e}")
         return []
     
 
@@ -62,10 +62,10 @@ def update_row(query: str) -> None:
             raise ValueError("Only UPDATE queries are allowed.")
 
         response = supabase.rpc("execute_dynamic_query", {"query": query}).execute()
-        print(f"Successfully updated table: {response}")
+        logging.info(f"Successfully updated table: {response}")
 
     except Exception as e:
-        print(f"Error updating record: {e}")
+        logging.error(f"Error updating record: {e}")
 
 
 def upsert_row_static(table_name: str, updates: Dict[str, Any]) -> None:
@@ -84,9 +84,9 @@ def upsert_row_static(table_name: str, updates: Dict[str, Any]) -> None:
 def update_row_static_(table_name: str, record_id: Any, updates: Dict[str, Any]) -> None:
     try:
         supabase.table(table_name).update(updates).eq("id", record_id).execute()
-        print(f"Updated record {record_id} in table '{table_name}'.")
+        logging.info(f"Updated record {record_id} in table '{table_name}'.")
     except Exception as e:
-        print(f"Error updating record {record_id} in table '{table_name}': {e}")
+        logging.error(f"Error updating record {record_id} in table '{table_name}': {e}")
 
 
 def execute_query_legacy(table_name: str, query: str, filters: Dict[str, Any] = {}) -> List[Dict[str, Any]]:
@@ -94,7 +94,7 @@ def execute_query_legacy(table_name: str, query: str, filters: Dict[str, Any] = 
         response = supabase.table(table_name).select(query).execute()
         return response.data
     except Exception as e:
-        print(f"Error executing query on table '{table_name}': {e}")
+        logging.error(f"Error executing query on table '{table_name}': {e}")
         return []
     
 
@@ -114,13 +114,11 @@ if __name__ == "__main__":
         "bot_executed": "sentitrader"
     }
     # new_trade = insert_row("trades", trade_data)
-    # print(f"Inserted new trade row: {new_trade}")
 
     # trades = execute_sql_query("select * from trades")
-    # print("All trades:", trades)
     # update_row_static("trades", 1, {"ticker_symbol": "BTC", "token_name": "Bitcoin"})
     res = insert_row("positions", {"status": "open", "token_address": "test_btc_addr_5"})
 
-    print(res)
+    logging.info(f"Insert result: {res}")
     # update_row("update trades set token_address = 'BTC$sample_address' where token_address = 'BTC';")
 

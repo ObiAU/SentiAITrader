@@ -192,9 +192,9 @@ class BaseBot:
                 starting_usdc_balance = 0.0  # Default to 0 if fetching fails
 
         logging.info(f"{self.bot_type} executed")
-        print(f"{self.bot_type} executed")
+        logging.info(f"{self.bot_type} executed")
 
-        print(f"{MAGENTA}{self.bot_type} BOT initialized with starting USDC balance: {starting_usdc_balance:.2f} USDC{RESET}")
+        logging.info(f"{self.bot_type} BOT initialized with starting USDC balance: {starting_usdc_balance:.2f} USDC")
         logging.info(f"{MAGENTA}{self.bot_type} BOT initialized with starting USDC balance: {starting_usdc_balance:.2f} USDC{RESET}")
 
         try:
@@ -207,7 +207,7 @@ class BaseBot:
         with self.positions_lock:
             self.positions_df = self.quality_check_positions(self.positions_df)
 
-        print(f"Current positions: {self.positions_df}")
+        logging.info(f"Current positions: {self.positions_df}")
         logging.info(f"Current positions: {self.positions_df}")
 
         self.shutdown_event = threading.Event()
@@ -299,7 +299,7 @@ class BaseBot:
 
         self.update_market_trend()
 
-        print(f"Current trend: {self.market_trend}")
+        logging.info(f"Current trend: {self.market_trend}")
 
         # we could relax this condition to just "not being in a downtrend"
         if current_price < sma:
@@ -418,7 +418,7 @@ class BaseBot:
         qol cleaning for positions_df
         """
         logging.info("Performing QA on positions_df..")
-        print("Performing QA on positions_df..")
+        logging.info("Performing QA on positions_df..")
         expected_columns = [
             "position_id",
             "token_address",
@@ -487,7 +487,7 @@ class BaseBot:
                     token_value = token_balance * (token_info.priceUsd or 0.0)
 
                     if token_info.address not in [USDC_MINT_ADDRESS, WRAPPED_SOL_MINT_ADDRESS, WRAPPED_SOL_OHLCV_ADDRESS] and token_value < negligible_value_threshold:
-                        print(f"Filtered out token {token_info.symbol or 'N/A'} ({token_info.address}) "
+                        logging.info(f"Filtered out token {token_info.symbol or 'N/A'} ({token_info.address}) "
                             f"with balance={token_balance:.6f}, value=${token_value:.2f}.")
                         logging.info(
                             f"Filtered out token {token_info.symbol or 'N/A'} ({token_info.address}) "
@@ -496,7 +496,7 @@ class BaseBot:
                         continue
 
                     logging.info(f"[create_holdings] {token_info.address} => decimals from balances: {token_decimals}")
-                    print(f"[create_holdings] {token_info.address} => decimals from balances: {token_decimals}")
+                    logging.info(f"[create_holdings] {token_info.address} => decimals from balances: {token_decimals}")
 
                     self.holdings[token_info.address] = {
                         "balance": token_balance,
@@ -516,14 +516,14 @@ class BaseBot:
 
         if sleep_time > 0:
             logging.info(f"Sleeping for {sleep_time} seconds before consolidating positions.")
-            print(f"Sleeping for {sleep_time} seconds before consolidating positions.")
+            logging.info(f"Sleeping for {sleep_time} seconds before consolidating positions.")
             time.sleep(sleep_time)
 
         try:
             balances = self.bird_client.fetch_balances(self.wallet_address)
             self.create_holdings(balances)
 
-            print(f"Holdings: {self.holdings}")
+            logging.info(f"Holdings: {self.holdings}")
             logging.info(f"Holdings: {self.holdings}")
 
             df = self.trade_logger.load_positions_from_db(
@@ -659,13 +659,13 @@ class BaseBot:
 
                 except Exception as e:
                     logging.error(f"Error updating decimals for {token_address}: {e}")
-                    print(f"Error updating decimals for {token_address}: {e}")
+                    logging.error(f"Error updating decimals for {token_address}: {e}")
 
             logging.info(f"[buy_token] {token_address} => decimals from overview: {true_decimals}")
-            print(f"[buy_token] {token_address} => decimals from overview: {true_decimals}")
+            logging.info(f"[buy_token] {token_address} => decimals from overview: {true_decimals}")
         except Exception as e:
             logging.error(f"Error fetching token overview for {token_address}: {e}")
-            print(f"Error fetching token overview for {token_address}: {e}")
+            logging.error(f"Error fetching token overview for {token_address}: {e}")
 
         try:
             if self.buy_cooldown_tokens.is_on_cooldown(token_address):
@@ -673,7 +673,7 @@ class BaseBot:
                 return None
         except Exception as e:
             logging.error(f"Error checking cooldown for {token_address}: {e}")
-            print(f"Error checking cooldown for {token_address}: {e}")
+            logging.error(f"Error checking cooldown for {token_address}: {e}")
 
         if usdc_amount > current_usdc:
             logging.info(
@@ -716,7 +716,7 @@ class BaseBot:
                 else:
                     next_tradable_time = None
 
-                print(f"{GREEN}Bought {exact_out_amount} (${usdc_amount}) of {token_address}: tx({tx_sig}){RESET}")
+                logging.info(f"Bought {exact_out_amount} (${usdc_amount}) of {token_address}: tx({tx_sig})")
                 logging.info(f"{GREEN}Bought {exact_out_amount} (${usdc_amount}) of {token_address}: tx({tx_sig}){RESET}")
 
                 # doesnt matter if within buy, as will inevitable call for new tokens
@@ -788,7 +788,7 @@ class BaseBot:
                     self.consolidate_positions_db_onchain(sleep_time=10) # sleep for 10seconds before consolidation
                 except Exception as e:
                     logging.error(f"Error consolidating positions: {e}")
-                    print(f"Error consolidating positions: {e}")
+                    logging.error(f"Error consolidating positions: {e}")
 
                 return {
                     "token_address": token_address,
@@ -877,7 +877,7 @@ class BaseBot:
 
             except Exception as e:
                 logging.error(f"Failed to upsert positions at full exit step. Error {e}")
-                print(f"Failed to upsert positions at full exit step. Error {e}")
+                logging.error(f"Failed to upsert positions at full exit step. Error {e}")
 
             self.positions_df.drop(idx, inplace=True)
 
@@ -908,7 +908,7 @@ class BaseBot:
 
         if self.sell_cooldown_tokens and self.sell_cooldown_tokens.is_on_cooldown(token_address):
             logging.info(f"Token {token_address} is still on cooldown. Skipping sell.")
-            print(f"Token {token_address} is still on cooldown. Skipping sell.")
+            logging.info(f"Token {token_address} is still on cooldown. Skipping sell.")
             return 0.0
 
         # enforce next_tradable_time on sell -- will only apply to sentitrader
@@ -919,7 +919,7 @@ class BaseBot:
                     next_tradable_time = next_tradable_time.replace(tzinfo=timezone.utc)
                 if next_tradable_time and datetime.now(timezone.utc) < next_tradable_time:
                     logging.info(f"Token {token_address} is not yet tradable. Skipping sell.")
-                    print(f"Token {token_address} is not yet tradable. Skipping sell.")
+                    logging.info(f"Token {token_address} is not yet tradable. Skipping sell.")
                     return 0.0
 
         # qol decimals override
@@ -937,7 +937,7 @@ class BaseBot:
         if not self.paper_trading:
             try:
                 logging.info(f"Selling {token_amount:.6f} tokens of {token_address}...")
-                print(f"Selling {token_amount:.6f} tokens of {token_address}...")
+                logging.info(f"Selling {token_amount:.6f} tokens of {token_address}...")
 
                 tx_sig, status, estimated_out_amount, block_time = swap_tokens(
                     private_key_base58=self.private_key_base58,
@@ -958,7 +958,7 @@ class BaseBot:
 
                 if status != "finalized" or not tx_sig:
                     logging.error("Swap ultimately failed even after BirdEye fallback.")
-                    print("Swap ultimately failed even after BirdEye fallback.")
+                    logging.error("Swap ultimately failed even after BirdEye fallback.")
                     return 0.0
 
                 execution_price = 0.0
@@ -977,7 +977,7 @@ class BaseBot:
 
                 if isinstance(tx_sig, str) and "error" in tx_sig.lower():
                     logging.error(f"Swap failed with error: {tx_sig}")
-                    print(f"Swap failed with error: {tx_sig}")
+                    logging.error(f"Swap failed with error: {tx_sig}")
                     return 0.0
 
 
@@ -1031,18 +1031,18 @@ class BaseBot:
                     logging.error(f"{RED}Error recording trade of {token_address} at {block_time}")
 
                 logging.info(f"Sold {token_amount:.6f} tokens of {token_name}. Realized profit: {realized_pnl + estimated_out_amount}")
-                print(f"Sold {token_amount:.6f} tokens of {token_name}. Realized profit: {realized_pnl + estimated_out_amount}")
+                logging.info(f"Sold {token_amount:.6f} tokens of {token_name}. Realized profit: {realized_pnl + estimated_out_amount}")
 
 
                 try:
                     self.consolidate_positions_db_onchain(sleep_time=10) # sleep for 10seconds before consolidation
                 except Exception as e:
                     logging.error(f"Error consolidating positions: {e}")
-                    print(f"Error consolidating positions: {e}")
+                    logging.error(f"Error consolidating positions: {e}")
 
                 if not isinstance(estimated_out_amount, (float, int)) or not estimated_out_amount:
                     logging.error(f"Estimated out amount is not a valid number: {estimated_out_amount}")
-                    print(f"Estimated out amount is not a valid number: {estimated_out_amount}")
+                    logging.error(f"Estimated out amount is not a valid number: {estimated_out_amount}")
                     estimated_out_amount = 0.0
 
                 return estimated_out_amount # best we can do is use the estimated amount here.
@@ -1050,7 +1050,7 @@ class BaseBot:
             # returning 0.0 as fallback
             except Exception as e:
                 logging.error(f"Error selling token {token_address}: {e}")
-                print(f"Error selling token {token_address}: {e}")
+                logging.error(f"Error selling token {token_address}: {e}")
                 return 0.0
         else:
             # Paper trading
@@ -1138,7 +1138,7 @@ class BaseBot:
             time.sleep(0.5)  # Sleep to avoid rate limiting
 
             current_price = get_jupiter_usd_price(output_mint=token_address, output_mint_decimals=output_mint_decimals)
-            print(f"Current price of {token_address}: {current_price:.4f}")
+            logging.info(f"Current price of {token_address}: {current_price:.4f}")
             if not isinstance(current_price, (float, int)) or not current_price:
                 return
 
@@ -1156,7 +1156,7 @@ class BaseBot:
 
                     if max_recorded_price < current_price:
                         logging.info(f"Max price updated for {token_address}: {current_price:.4f}")
-                        print(f"Max price updated for {token_address}: {current_price:.4f}")
+                        logging.info(f"Max price updated for {token_address}: {current_price:.4f}")
                         self.positions_df.loc[idx, "max_price"] = current_price
 
                         try:
@@ -1373,16 +1373,16 @@ class BaseBot:
             with self.positions_lock:
                 current_open = len(self.positions_df[self.positions_df["status"] == "open"])
             if current_open < self.max_open_trades:
-                    print(f"Initiating scouting and buying...")
+                    logging.info(f"Initiating scouting and buying...")
                     logging.info(f"Initiating scouting and buying...")
                     self.scout_and_buy()
 
             else:
                 logging.info("Max open trades reached. Skipping scouting and buying.")
-                print("Max open trades reached. Skipping scouting and buying.")
+                logging.info("Max open trades reached. Skipping scouting and buying.")
 
         logging.info(f"Scout thread restarting with an interval of {self.scout_interval} {self.scout_interval_unit}.")
-        print(f"Scout thread restarting with an interval of {self.scout_interval} {self.scout_interval_unit}.")
+        logging.info(f"Scout thread restarting with an interval of {self.scout_interval} {self.scout_interval_unit}.")
 
         if self.scout_interval_unit == "seconds":
             schedule.every(self.scout_interval).seconds.do(job)
@@ -1402,7 +1402,7 @@ class BaseBot:
         while True:
             schedule.run_pending()
             logging.info(f"Scout thread sleeping for {sleep_time:.0f} seconds...")
-            print(f"Scout thread sleeping for {sleep_time:.0f} seconds...")
+            logging.info(f"Scout thread sleeping for {sleep_time:.0f} seconds...")
             time.sleep(sleep_time)
 
 
@@ -1439,7 +1439,7 @@ class BaseBot:
                     time_since_tx = time.time() - token.tx_time.timestamp()
 
                     if time_since_tx > self.trade_opened_less_than_x_mins_ago*60:  # 1 hour
-                        print(f"Discarding {token.address} as it was entered over an hour ago.")
+                        logging.info(f"Discarding {token.address} as it was entered over an hour ago.")
                         self.potential_entries.pop(token.address, None)
 
 
@@ -1581,13 +1581,11 @@ def main():
         sma_window_hours=24,
     )
     # res = bot.trade_logger.load_positions_from_db(bot.wallet_address, bot.bird_client.fetch_balances(bot.wallet_address), negligible_value_threshold=0.05)
-    # print(res)
-    print(bot.is_market_bearish())
+    logging.info(f"Market is bearish: {bot.is_market_bearish()}")
 
     # usdc_amount = 1
     # token_address = "63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9"
     # position_id = bot.get_or_create_position_id(token_address)
-    # print(f"Position ID: {position_id}")
 
     # tx_sig, status, exact_out_amount, block_time = swap_tokens(
     #             private_key_base58=bot.private_key_base58,
@@ -1610,7 +1608,6 @@ def main():
     #     return 0.0
 
     # block_time = datetime.fromtimestamp(block_time, timezone.utc)
-    # print(f"Block Time: {block_time}")
 
     # entry_price = usdc_amount / exact_out_amount
     # entry_time = timestamp = block_time
@@ -1659,7 +1656,6 @@ def main():
 
     # bot.run()
     # pos = bot.get_or_create_position_id("NuSvbWzz2QaqepZSyj8MhyvVv1E4W9AxnSge7G8pump")
-    # print(pos)
 
 if __name__ == "__main__":
     main()

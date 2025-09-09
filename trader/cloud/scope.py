@@ -42,14 +42,13 @@ def main():
     values = result.get("values", [])
 
     if not values:
-      print("No data found.")
+      logging.warning("No data found.")
       return
 
     for row in values:
-      # print(f"{row[0]}, {row[4]}")
-      print(row)
+      logging.info(f"Row: {row}")
   except HttpError as err:
-    print(err)
+    logging.error(f"Error: {err}")
 
 
 if __name__ == "__main__":

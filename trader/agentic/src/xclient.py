@@ -23,7 +23,7 @@ class XClient:
         encoded_key = requests.utils.quote(_api_key)
         encoded_secret = requests.utils.quote(_api_secret)
 
-        print(f"Encoded Key: {encoded_key}")
+        logging.debug(f"Encoded Key: {encoded_key}")
         
         bearer_token_credentials = f"{encoded_key}:{encoded_secret}"
         
@@ -116,11 +116,11 @@ class XClient:
                 attempt += 1
                 if attempt < max_retries:
                     sleep_time = backoff_factor ** attempt
-                    print(f"[Retry {attempt}/{max_retries}] Error: {e}. "
+                    logging.warning(f"[Retry {attempt}/{max_retries}] Error: {e}. "
                           f"Sleeping for {sleep_time} seconds before retrying...")
                     time.sleep(sleep_time)
                 else:
-                    print("Max retries reached. Reraising exception.")
+                    logging.error("Max retries reached. Reraising exception.")
                     raise e
                 
 
@@ -188,20 +188,16 @@ if __name__ == "__main__":
     ticker = "BTC"
     
     # tweets = client.get_recent_tweets(ticker, max_results=10)
-    # print(tweets, flush=True)
 
     try:
         tweets_with_backoff = client.get_recent_tweets_with_backoff(ticker, max_results=5)
-        print("Tweets with backoff:", tweets_with_backoff)
+        logging.info(f"Tweets with backoff: {len(tweets_with_backoff)}")
     except Exception as e:
-        print("Failed to fetch tweets with backoff:", e)
+        logging.error(f"Failed to fetch tweets with backoff: {e}")
 
     # tweet_data = client.get_tweet_by_id("1234567890123456789")
-    # print(tweet_data)
 
     # user_profile = client.get_user_profile("elonmusk")
-    # print(user_profile)
 
     # Note: You need correct permissions and tokens for this to succeed.
     # response = client.post_tweet("Hello X!")
-    # print(response)

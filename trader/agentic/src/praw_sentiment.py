@@ -95,7 +95,7 @@ class PrawRedditClient:
                     allow_images=sub.allow_images
                 ))
             except Exception as e:
-                print(f"Skipping a subreddit due to error: {e}")
+                logging.warning(f"Skipping a subreddit due to error: {e}")
         return results
     
 
@@ -109,7 +109,7 @@ class PrawRedditClient:
             return sub
         
         except Exception as e:
-            print(f"Error retrieving subreddit {subreddit_name}: {e}")
+            logging.error(f"Error retrieving subreddit {subreddit_name}: {e}")
             return None
         
 
@@ -273,18 +273,13 @@ class PrawRedditClient:
 if __name__ == "__main__":
     rclient = PrawRedditClient()
     subs = rclient.find_subreddits(query="turbo toad", limit=1)
-    print("Search subreddits result:", subs)
+    logging.info(f"Search subreddits result: {len(subs)}")
 
     # if rclient.verify_subreddit_exists("memecoins"):
-    #     print("r/memecoins exists!")
     # else:
-    #     print("r/memecoins does not exist or is private/banned.")
 
     # hot_posts = rclient.get_subreddit_hot("memecoins", limit=5)
-    # print("HOT posts from /r/memecoins:\n", hot_posts)
 
     # search_posts = rclient.search_subreddit_posts("memecoins", query="Doge Jones Industrial Average - DJI", limit=5)
-    # print("Search posts in /r/memecoins:\n", search_posts)
 
     # res = rclient.get_submission_comments("turbotoadx", "1hrvyhj", 1)
-    # print(res)

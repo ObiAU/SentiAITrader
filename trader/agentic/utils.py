@@ -20,7 +20,7 @@ def request_with_retry(method, url, headers=None, params=None, data=None, auth =
             if response.status_code == 429:
                 # Rate limit exceeded
                 wait = backoff_factor * (2 ** attempt)
-                print(f"Rate limit hit. Retrying in {wait} seconds...")
+                logging.info(f"Rate limit hit. Retrying in {wait} seconds...")
                 time.sleep(wait)
                 continue
             response.raise_for_status()
@@ -28,10 +28,10 @@ def request_with_retry(method, url, headers=None, params=None, data=None, auth =
             return response
         
         except RequestException as e:
-            print(f"Request failed: {e}")
+            logging.error(f"Request failed: {e}")
             if attempt < max_retries - 1:
                 wait = backoff_factor * (2 ** attempt)
-                print(f"Retrying in {wait} seconds...")
+                logging.info(f"Retrying in {wait} seconds...")
                 time.sleep(wait)
             else:
                 raise
@@ -42,9 +42,9 @@ def get_and_encode_logo(logo_uri):
     if response.status_code == 200:
         base64_image = base64.b64encode(response.content).decode('utf-8')
         logging.info("Retrieved Base64 Encoded Image")
-        print(base64_image)
+        logging.debug(f"Base64 image: {base64_image[:100]}...")
     else:
-        print("Failed to fetch the image. Status code:", response.status_code)
+        logging.error(f"Failed to fetch the image. Status code: {response.status_code}")
         base64_image = None
     
     return base64_image
@@ -153,4 +153,4 @@ if __name__ == "__main__":
         response_format=TestStructure
     )
 
-    print(response)
+    logging.info(f"Response: {response}")

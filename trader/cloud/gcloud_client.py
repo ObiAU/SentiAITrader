@@ -111,7 +111,7 @@ class GoogleCloudClient:
             return creds
 
         except Exception as e:
-            print(f"Error during authentication: {e}")
+            logging.error(f"Error during authentication: {e}")
             return None
 
 class GoogleSheetsClient(GoogleCloudClient):
@@ -180,12 +180,12 @@ class GoogleSheetsClient(GoogleCloudClient):
 
             hyperlink = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
 
-            print(f"Created Google Sheet at: {hyperlink}")
+            logging.info(f"Created Google Sheet at: {hyperlink}")
 
             return hyperlink
 
         except HttpError as error:
-            print(f"An error occurred: {error}")
+            logging.error(f"An error occurred: {error}")
             raise error
         
 
@@ -209,9 +209,9 @@ class GoogleSheetsClient(GoogleCloudClient):
                 )
                 .execute()
             )
-            print(f"{result.get('updatedCells')} cells updated.")
+            logging.info(f"{result.get('updatedCells')} cells updated.")
         except HttpError as err:
-            print(f"There was an HTTP error: {err}")
+            logging.error(f"There was an HTTP error: {err}")
             raise err
 
     def append_row(
@@ -234,9 +234,9 @@ class GoogleSheetsClient(GoogleCloudClient):
                 )
                 .execute()
             )
-            print(f"{result.get('updates').get('updatedCells')} cells appended.")
+            logging.info(f"{result.get('updates').get('updatedCells')} cells appended.")
         except HttpError as err:
-            print(f"There was an HTTP error: {err}")
+            logging.error(f"There was an HTTP error: {err}")
             raise err
 
     def get_from_sheet(
@@ -253,10 +253,10 @@ class GoogleSheetsClient(GoogleCloudClient):
             )
             values = result.get("values", [])
             if not values:
-                print("No data found.")
+                logging.warning("No data found.")
             return values
         except HttpError as err:
-            print(f"There was an HTTP error: {err}")
+            logging.error(f"There was an HTTP error: {err}")
             raise err
         
     def update_trades_history_sheet(self, spreadsheet_id: str, sheet_name: str) -> None:

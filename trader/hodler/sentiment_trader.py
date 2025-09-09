@@ -121,7 +121,6 @@ class CultTrader:
         try:
             if not self.subreddit:
                 self.subreddit = SubredditScout().find_subreddit_ai(ticker, token_name)
-                print(f"Subreddit found: {self.subreddit}")
                 logging.info(f"Subreddit found: {self.subreddit}")
 
         except Exception as e:
@@ -153,7 +152,6 @@ class CultTrader:
             confidence_score = latest.get('confidence_score', None)
             if sentiment_score is not None and confidence_score is not None:
                 logging.info(f"Using cached sentiment score for {token_address}: {sentiment_score}")
-                print(f"Using cached sentiment score for {token_address}: {sentiment_score}")
                 
                 return SentimentConfidencePairStruct(
                     score=sentiment_score, 
@@ -281,20 +279,16 @@ class CultTrader:
             
             # TOKEN CATEGORISATION
             # categorisation -- make sure filtered to solana first (should be done in scout method)
-            print(f"Categorising token {metadata.get('ticker')}")
             logging.info(f"Categorising token {metadata.get('ticker')}")
             result = categorise_token(metadata.get("ticker"), metadata.get("name"), metadata.get("logoURI"), metadata.get("description"))
 
             if result.category not in ("Cult", "Utility/Layer1/Layer2"):
-                print(f"Skipping token {metadata.get('ticker')} as it is not a cult or utility token")
                 logging.info(f"Skipping token {metadata.get('ticker')} as it is not a cult or utility token")
                 continue
             logging.info(f"Categorised token {metadata.get('ticker')} as {result.category}")
-            print(f"Categorised token {metadata.get('ticker')} as {result.category}")
 
             # DRAWDOWN-RECOVERY EVENTS
             # drawdowns -- whhere does new dd event begin
-            print(f"Analyzing drawdowns for token {metadata.get('ticker')}")
             logging.info(f"Analyzing drawdowns for token {metadata.get('ticker')}")
             dd_events = analyze_token_drawdowns_6m(
                                                 client=client,
@@ -310,7 +304,6 @@ class CultTrader:
             drawdown_count = dd_events.get("num_drawdowns", 0)
             drawdown_resilience_score = dd_events.get("drawdown_resilience_score", 0.0)
             logging.info(f"Drawdown count: {drawdown_count}, Drawdown resilience score: {drawdown_resilience_score}")
-            print(f"Drawdown count: {drawdown_count}, Drawdown resilience score: {drawdown_resilience_score}")
 
             if drawdown_count < 2:
                 continue
@@ -318,7 +311,6 @@ class CultTrader:
             # SENTIMENT ANALYTICS       
             sentiment = self.capture_sentiment(address) 
             logging.info(f"Sentiment score for {address}: {sentiment.score:.2f}")
-            print(f"Sentiment score for {address}: {sentiment.score:.2f}")
                     
             # === Score-based buy decision === removed cultiness (FOR NOW)
             s_score, dd_score, avg_score = self.compute_buy_scores(
@@ -328,24 +320,19 @@ class CultTrader:
                 sentiment_weight=0.5
                 )
 
-            print(f"Calculated scores: Sentiment score: {s_score:.2f}, Drawdown score: {dd_score:.2f}")
             logging.info(f"Calculated scores: sentiment score: {s_score:.2f}, Drawdown score: {dd_score:.2f}")
-            print(f"Calculated average score: {avg_score:.2f}")
             logging.info(f"Calculated average score: {avg_score:.2f}")
             if not self.decide_buy(s_score, dd_score, avg_score, avg_threshold=0.6, min_threshold=0.4):
                 logging.info(
                     f"Skipping {address} => (sentiment={s_score:.2f}, drawdown={dd_score:.2f}) did not meet thresholds."
                 )
-                print(f"Skipping {address} => (sentiment={s_score:.2f}, drawdown={dd_score:.2f}) did not meet thresholds.")
                 continue
 
             # how many usdc to allocate -- default is usd to trade. max is 2x
             usd_to_buy = self.compute_buy_size(avg_score, self.bot.usd_per_trade)
-            print(f"Computed buy size: {usd_to_buy:.2f} USDC")
             logging.info(f"Computed buy size: {usd_to_buy:.2f} USDC")
             if usd_to_buy <= 0:
                 logging.info(f"Computed buy size is 0. Skipping token {address}.")
-                print(f"Computed buy size is 0. Skipping token {address}.")
                 continue
             
             if token.tx_time and isinstance(token.tx_time.timestamp(), datetime):
@@ -389,10 +376,8 @@ class CultTrader:
 
         potential_buy = base_usd_per_trade * multiplier
         logging.info(f"Potential buy: {potential_buy:.2f} USDC based on avg_score={avg_score:.2f}")
-        print(f"Potential buy: {potential_buy:.2f} USDC based on avg_score={avg_score:.2f}")
 
         total_holdings_value = self.bot.compute_total_holdings_value()  # in USDC
-        print(f"Total holdings value: {total_holdings_value:.2f} USDC")
         logging.info(f"Total holdings value: {total_holdings_value:.2f} USDC")
         if total_holdings_value <= 0:
             return 0.0

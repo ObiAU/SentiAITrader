@@ -197,7 +197,6 @@ class PiggyBackSniper:
 
                 tokens_leftover = original_amount * leftover_frac
                 if tokens_leftover > 0:
-                    print(f"Trailing stop triggered! Price={current_price:.4f} < stop={stop_price:.4f}. Selling leftover fraction={leftover_frac:.2%}.")
                     logging.info(
                         f"{RED}Trailing stop triggered! Price={current_price:.4f} < stop={stop_price:.4f}. "
                         f"Selling leftover fraction={leftover_frac:.2%}.{RESET}"
@@ -206,7 +205,6 @@ class PiggyBackSniper:
                     self.bot.buy_cooldown_tokens.add(token_addr) # Add to cooldown
 
                     logging.info(f"Selling {tokens_leftover} tokens of {token_addr[:6]}...")
-                    print(f"Selling {tokens_leftover} tokens of {token_addr[:6]}...")
                     part_profit = self.bot.sell_token(
                             token_address=token_addr,
                             token_amount=tokens_leftover,
@@ -221,7 +219,6 @@ class PiggyBackSniper:
 
                         realized_profit_usd += part_profit
                         partial_sold_cum = 1.0
-                        print(f"{YELLOW}Position closed by trailing stop. Removing from DataFrame. (Token={token_addr[:6]}...){RESET}")
                         logging.info(
                             f"{YELLOW}Position closed by trailing stop. Removing from DataFrame. (Token={token_addr[:6]}...){RESET}"
                         )

@@ -104,8 +104,6 @@ def update_holdings_from_transaction(
             )
 
 
-
-
 def verify_tx_and_get_balance_change(
     client: Client,
     tx_sig: str,
@@ -137,9 +135,6 @@ def verify_tx_and_get_balance_change(
         slot_status = tx_response.value.slot
 
         # Check finalized status
-
-
-
         tx_status_resp = client.get_signature_statuses([tx_signature], search_transaction_history=True)
 
         is_finalized = tx_status_resp.value[0].confirmation_status.__str__() == "TransactionConfirmationStatus.Finalized"
@@ -213,7 +208,6 @@ def get_jupiter_usd_price(
     price = usd / estimated_amount_out
 
     return price
-
 
 
 def get_jupiter_quote(
@@ -465,7 +459,6 @@ def get_tx_block_time(
         return None
 
 
-
 if __name__ == "__main__":
     client = Client(Config.RPC_URL)
 
@@ -474,25 +467,9 @@ if __name__ == "__main__":
     output_mint = "7u8nZijX8J7Psabzt813RApbv9YEWQTepMfm1zxmpump"
     output_decimals = 6
 
-    # status, balance_change = verify_tx_and_get_balance_change(
-    #     client=client,
-    #     tx_sig=test_tx,
-    #     user_pubkey=user_pubkey,
-    #     output_mint=output_mint,
-    #     output_decimals=output_decimals
-    # )
-
-    # quote = get_jupiter_usd_price(
-    #     output_mint='BjotV424H4UBvrAiGFGjQGztLxoafxM4HSdCXZR6pump',
-    #     output_mint_decimals=6,
-    #     usd=10
-    # )
-
-    # print(f"Price: {quote}")
-
     block_time = get_tx_block_time(
         client=client,
         tx_sig=test_tx
     )
 
-    print(f"Block time: {block_time}")
+    logging.info(f"Block time: {block_time}")

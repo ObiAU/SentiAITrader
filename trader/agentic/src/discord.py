@@ -25,18 +25,17 @@ class DiscordClient(discord.Client):
 
 
     async def on_ready(self):
-        print(f"Logged in as {self.user} (ID: {self.user.id})")
-        print("------")
+        logging.info(f"Logged in as {self.user} (ID: {self.user.id})")
 
         all_messages = []
 
         for server in self.servers_to_scrape:
             guild = self.get_guild(server.guild_id)
             if guild is None:
-                print(f"Could not access guild with ID {server.guild_id}")
+                logging.warning(f"Could not access guild with ID {server.guild_id}")
                 continue
 
-            print(f"Accessing guild: {guild.name} ({guild.id})")
+            logging.info(f"Accessing guild: {guild.name} ({guild.id})")
             channels = guild.text_channels if server.channels is None else [
                 guild.get_channel(ch_id) for ch_id in server.channels if guild.get_channel(ch_id)
             ]
@@ -45,11 +44,11 @@ class DiscordClient(discord.Client):
                 if channel is None:
                     continue
 
-                print(f"Fetching messages from channel: {channel.name} ({channel.id})")
+                logging.info(f"Fetching messages from channel: {channel.name} ({channel.id})")
                 messages = await self.fetch_messages(channel, guild.id)
                 all_messages.extend(messages)
 
-        print("Finished fetching messages.")
+        logging.info("Finished fetching messages.")
         self.pretty_print_messages(all_messages)
 
         await self.close()
@@ -68,15 +67,15 @@ class DiscordClient(discord.Client):
                 )
                 fetched_messages.append(msg_output)
         except discord.Forbidden:
-            print(f"Permission denied to read message history in {channel.name} ({channel.id}).")
+            logging.warning(f"Permission denied to read message history in {channel.name} ({channel.id}).")
         except discord.HTTPException as e:
-            print(f"Failed to fetch messages from {channel.name} ({channel.id}): {e}")
+            logging.error(f"Failed to fetch messages from {channel.name} ({channel.id}): {e}")
 
         return fetched_messages
 
     def pretty_print_messages(self, messages: List[MessageOutput]):
         for msg in messages:
-            print(f"[{msg.timestamp}] {msg.author} in channel {msg.channel_id} (server {msg.guild_id}): {msg.content}")
+            logging.debug(f"[{msg.timestamp}] {msg.author} in channel {msg.channel_id} (server {msg.guild_id}): {msg.content}")
 
 if __name__ == "__main__":
     TURBO_SERVER_ID = '1102800896393498685'
@@ -103,14 +102,14 @@ if __name__ == "__main__":
 
     class MyClient(discord.Client):
         async def on_ready(self):
-            print(f'Logged in as {self.user}')
+            logging.info(f'Logged in as {self.user}')
             channel = self.get_channel(CHANNEL_ID)
             if channel:
                 messages = await channel.history(limit=10).flatten()
                 for message in messages:
-                    print(f'{message.author}: {message.content}')
+                    logging.info(f'{message.author}: {message.content}')
             else:
-                print("Channel not found. Check your CHANNEL_ID.")
+                logging.error("Channel not found. Check your CHANNEL_ID.")
             await self.close()
 
     # Initialize and run the bot

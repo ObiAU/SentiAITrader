@@ -63,11 +63,9 @@ if __name__ == "__main__":
     simple_query = "Turbo toad (ticker symbol is TURBO) cryptocurrency discussions on social media within the last 24 hours"
     prompt = PromptHandler().get_prompt(template="opensearch", ticker = "DJI", token_name = "Doge Jones Industrial Average")
     # results = api.search("Turbo Toad cryptocurrency")
-    # print(results)
     # snippets = api.extract_snippets(results)
 
     # for snippet in snippets:
-    #     print(snippet)
 
     
     # search_results = tav_search.search(query, max_results=3, include_answer=False)
@@ -75,15 +73,12 @@ if __name__ == "__main__":
     # # Extract text snippets from the search results
     # snippets = tav_search.extract_snippets(search_results)
     # for snippet in snippets:
-    #     print(snippet)
     
-    # print(search_results)
     # qna = tav_search.get_answer("The sentiment of Turbo Toad (ticker symbol is TURBO) cryptocurrency within the past 72 hours. Search forums and discussion areas such as Twitter, Reddit, Discord. Along with your answer, return quotes as validation and return the URLs of your sources.")
     # qna = tav_search.get_answer(query)
-    # print(qna)
 
     # results = link.search(query, depth='standard', output="sourcedAnswer")
     # pp(results)
 
     results = crit.search(prompt, output_format=False)
-    print(results)
+    logging.info(f"Results: {results}")

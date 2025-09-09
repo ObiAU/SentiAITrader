@@ -100,7 +100,6 @@ class DatabaseLogger:
         if max_recorded_price:
             db_recorded_price = self.get_max_recorded_price(token_address, position_id)
             if db_recorded_price and db_recorded_price > max_recorded_price:
-                print(f"DB recorded price {db_recorded_price} is greater than max_recorded_price {max_recorded_price}. Setting max_recorded_price to None.")
                 logging.info(f"DB recorded price {db_recorded_price} is greater than max_recorded_price {max_recorded_price}. Setting max_recorded_price to None.")
                 max_recorded_price = None
 
@@ -126,8 +125,6 @@ class DatabaseLogger:
             "wallet_address": wallet_address
         }
 
-
-
         # update_fields = {k: (int(v) if isinstance(v, np.int64) else v) for k, v in trace.items() if v is not None}
         update_fields = {
                     k: (float(v) if isinstance(v, (np.int64, np.int32)) else 
@@ -143,7 +140,6 @@ class DatabaseLogger:
             update_fields["position_id"] = int(position_id)
 
             upsert_row_static("positions", update_fields)
-            print(f"Successfully upserted position with ID {position_id}: {update_fields}")
             logging.info(f"Successfully upserted position with ID {position_id}: {update_fields}")
         except Exception as e:
             logging.error(f"Failed to upsert position with ID {position_id}. Error: {e}")
@@ -191,7 +187,6 @@ class DatabaseLogger:
             "wallet_address": wallet_address,
         }
 
-        # insert_fields = {k: (int(v) if isinstance(v, np.int64) else v) for k, v in trace.items() if v is not None}
 
         insert_fields = {
                     k: (float(v) if isinstance(v, (np.int64, np.int32)) else 
@@ -203,11 +198,9 @@ class DatabaseLogger:
 
         try:
             insert_row("trades", insert_fields)
-            print(f"Successfully recorded {buy_sell} trade for ${amount} of {token_address} at {timestamp}.")
             logging.info(f"Successfully recorded {buy_sell} trade for ${amount} of {token_address} at {timestamp}.")
 
         except Exception as e:
-            print(f"Failed to record {buy_sell} trade of {token_address}. Error: {e}")
             logging.error(f"Failed to record {buy_sell} trade of {token_address}. Error: {e}")
 
 
@@ -589,52 +582,4 @@ if __name__ == "__main__":
     TX_SIG = "5fpM4Ae52MDZA219mYuwLHMHq6UE9agzGaYVS9LJMhwWnfAZYGNWGBfgFAWGzM9NV8Px3UcPLwf1rv9jQptvK33A"
 
     logs = DatabaseLogger("positions", "sniper")
-    # res = logs.load_positions_from_db(WALLET_ADDRESS, [])
-    # print(res)
     logs.qol_upsert_positions()
-
-
-    # Trade Logging test
-    # logs.record_trade(
-    #     position_id=1001,
-    #     timestamp=datetime.now(),
-    #     token_address=SOL_ADDRESS,
-    #     wallet_address=WALLET_ADDRESS,
-    #     ticker="SOL",
-    #     token_name="Solana",
-    #     tx_signature=TX_SIG,
-    #     entry_exit_price=89.45,
-    #     amount=2.5,
-    #     buy_sell="buy",
-    #     type="market",
-    #     )
-        
-
-    # Upsert Position test
-    # logs.upsert_position(
-    #         position_id=2,
-    #         wallet_address="5YNmS1R9nNSCDzb5a7mMJ1dwK9uHeAAF4CmPEwKgVWr8",
-    #         entry_time=datetime.now() - timedelta(days=1),
-    #         entry_price=90.25,
-    #         entry_amount=10.0,
-    #         partial_sold_cumulative=2.0,
-    #         last_trade_time=datetime.now(),
-    #         token_address="SOL0x1111111111111111111111111111111111111111",
-    #         ticker_symbol="SOL",
-    #         token_name="Solana",
-    #         blockchain="solana",
-    #         amount_holding=8.0,
-    #         amount_sold=2.0,
-    #         stoploss_price=85.0,
-    #         max_recorded_price=95.0,
-    #         realized_pnl=5.0,
-    #         trade_status="open",
-    #         type="market"
-    #     )
-
-    # logs.upsert_position(
-    #     position_id=1,
-    #     blockchain="solana",
-    #     token_address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    #     wallet_address=WALLET_ADDRESS,
-    #     )
