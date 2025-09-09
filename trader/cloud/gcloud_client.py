@@ -1,13 +1,17 @@
-import os, json, tempfile, logging
+import json
+import logging
+import os
+import tempfile
 from typing import List, Any, Optional
+
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
 
-from trader.database.supa_client import execute_sql_query
 from trader.config import Config
+from trader.database.supa_client import execute_sql_query
 
 
 SECRETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "local_secrets")

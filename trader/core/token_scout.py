@@ -1,20 +1,25 @@
-import asyncio, sys, os, random, logging
-from datetime import datetime, timedelta, timezone
+import asyncio
+import logging
+import os
+import random
+import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from typing import List, Set, Tuple, Optional, Dict, Any
 
 from birdeye import BirdEyeClient, BirdEyeConfig, TokenSecurityInfo, TokenOverview, Trader
+
+from trader.config import Config
 from trader.core.dexscreener import fetch_dexscreener_info
+from trader.core.models import TokenMetadata
 from trader.core.top_traders import top_trader_addresses
 from trader.sniper.analysis import analyze_for_good_tokens
-from trader.core.models import TokenMetadata
-from trader.config import Config
 
 # ---------------------------------------------------------
 # GLOBAL BirdEyeConfig (not a shared client)
 # ---------------------------------------------------------
 global_config = BirdEyeConfig(api_key=Config.BIRDEYE_API_KEY)
-import time
 
 # Retained traders across iterations
 retained_traders: List[str] = []

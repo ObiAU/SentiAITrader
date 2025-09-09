@@ -1,6 +1,12 @@
-import os, sys, logging, logging, pandas as pd, math, numpy as np
-from typing import List, Optional, Literal
+import logging
+import math
+import os
+import sys
 from datetime import datetime, timedelta, timezone
+from typing import List, Optional, Literal
+
+import numpy as np
+import pandas as pd
 from pydantic import BaseModel, field_validator
 
 from database.supa_client import insert_row, execute_sql_query, upsert_row_static

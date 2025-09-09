@@ -1,10 +1,17 @@
-import time, os, sys, warnings, logging, threading, math
-from typing import Tuple, Literal
-warnings.simplefilter(action='ignore', category=FutureWarning)
+import logging
+import math
+import os
+import sys
+import threading
+import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Tuple, Literal
 
-from trader.core.base_robot import *
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 from trader.config import Config
+from trader.core.base_robot import *
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 class PiggyBackSniper:

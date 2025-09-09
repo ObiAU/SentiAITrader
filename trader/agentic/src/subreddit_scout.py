@@ -1,9 +1,14 @@
-import os, sys, requests, requests.auth, time
-from pydantic import BaseModel, Field
+import os
+import sys
+import time
 from typing import Optional, List, Dict
 
-from agentic.utils import (get_structured_response, request_with_retry)
+import requests
+import requests.auth
+from pydantic import BaseModel, Field
+
 from agentic.prompts import PromptHandler
+from agentic.utils import get_structured_response, request_with_retry
 from trader.agentic.src.praw_sentiment import PrawRedditClient
 
 class CommentContributionSettings(BaseModel):
