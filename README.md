@@ -5,9 +5,11 @@ This repository contains a dual‑service Docker setup for two TA and AI-powered
 * **sniper** – a "sniper" order-execution bot that watches the order book and executes fast trades based on certain metrics.
 * **culttrader** – a sentiment-driven "cult trader" that ingests social media and news sentiment signals and makes buy/sell decisions based on AI analysis.
 
-Both services extend a common `BaseRobot` class and implement shared components for technical analysis (ADX, RSI, SMAs etc.), market-conditions monitoring, AI-powered deep search and sentiment analysis, and algorithmic (&configurable) buy/sell/partial-sell thresholds. 
+Both services extend a common `BaseRobot` class and implement shared components for technical analysis (ADX, RSI, SMAs etc.), market-conditions monitoring, AI-powered deep search and sentiment analysis, and algorithmic, configurable buy/sell/partial-sell thresholds. 
 
-Certain files have been obfuscated for security and privacy!
+## ⚠️ **IMPORTANT NOTICE**
+
+**This code is NOT runnable in its current state.** Certain critical files have been obfuscated, removed, or contain placeholder data for privacy and security reasons. This repository is provided for demonstration purposes only.
 
 ---
 
@@ -15,7 +17,7 @@ Certain files have been obfuscated for security and privacy!
 
 * **Docker Engine** ≥ 20.10
 * **Docker Compose** ≥ 1.29
-* (Optional) A `.env` file at the repo root for configuration
+* A `.env` file at the repo root for configuration
 
 ---
 
