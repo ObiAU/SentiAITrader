@@ -7,9 +7,7 @@ This repository contains a dual‑service Docker setup for two TA and AI-powered
 
 Both services extend a common `BaseRobot` class and implement shared components for technical analysis (ADX, RSI, SMAs etc.), market-conditions monitoring, AI-powered deep search and sentiment analysis, and algorithmic, configurable buy/sell/partial-sell thresholds. 
 
-## ⚠️ **IMPORTANT NOTICE**
-
-**This code is NOT runnable in its current state.** Certain critical files have been obfuscated, removed, or contain placeholder data for privacy and security reasons. This repository is provided for demonstration purposes only.
+**Note:** This code is not runnable. Certain critical files have been obfuscated, removed, or contain placeholder data for privacy and security reasons. This repository is provided for demonstration purposes only.
 
 ---
 
