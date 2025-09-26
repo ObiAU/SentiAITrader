@@ -223,7 +223,6 @@ class CultAgent(RedditClient):
             logging.warning("No posts found.")
             return []
 
-
         all_posts = []
 
         for idx, post in enumerate(posts_data):

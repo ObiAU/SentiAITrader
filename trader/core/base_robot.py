@@ -1759,9 +1759,9 @@ class BaseBot:
                 idx, realized_profit = future.result()
                 if idx in self.positions_df.index:
                     with self.positions_lock:
-                        self.positions_df.loc[idx, "realized_profit_usd"] += (
-                            realized_profit
-                        )
+                        self.positions_df.loc[
+                            idx, "realized_profit_usd"
+                        ] += realized_profit
                         self.positions_df.loc[idx, "current_amount"] = 0.0
                         self.positions_df.loc[idx, "partial_sold_cumulative"] = 1.0
                         self.positions_df.loc[idx, "status"] = "closed"

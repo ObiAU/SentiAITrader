@@ -344,9 +344,7 @@ def swap_tokens(
                 raise ValueError("No quote from Jupiter")
 
             estimated_amount_out_str = quote_resp.get("outAmount")
-            float(estimated_amount_out_str) / (
-                10**output_mint_decimals
-            )
+            float(estimated_amount_out_str) / (10**output_mint_decimals)
 
             # get the swap transaction
             swap_tx_b64 = get_jupiter_swap_tx(

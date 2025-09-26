@@ -5,6 +5,7 @@ from praw.models import Subreddit, Submission, Comment
 from pydantic import BaseModel, Field
 
 from trader.config import Config
+
 # ---------------------------------------------------------------------------
 # DATA MODELS (Pydantic) to store or serialize as needed
 # ---------------------------------------------------------------------------
