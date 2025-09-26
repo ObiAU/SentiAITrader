@@ -1,19 +1,18 @@
 import logging
 import math
-import os
-import sys
-import threading
-import time
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Tuple, Literal
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 from trader.config import Config
 from trader.core.base_robot import *
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
 class PiggyBackSniper:
     """
     A trading bot that scouts for new tokens, opens positions,
@@ -33,7 +32,10 @@ class PiggyBackSniper:
         starting_usdc_balance: float = 1000.0,
         max_open_trades: int = 10,
         usd_per_trade: float = 5.0,
-        scout_interval: Tuple[int, Literal['seconds', 'minutes', 'hours']] = (5, 'minutes'),
+        scout_interval: Tuple[int, Literal["seconds", "minutes", "hours"]] = (
+            5,
+            "minutes",
+        ),
         position_check_interval: int = 30,
         analyze_potential_entries_interval: int = 60,
         paper_trading: bool = False,
@@ -44,9 +46,9 @@ class PiggyBackSniper:
         max_drawdown_allowed: float = 70.0,
         top10_holder_percent_limit: float = 0.30,
         creation_max_days_ago: int = None,
-        creation_min_days_ago: int = 90,   # token must be created within these many days
-        creation_max_hours_ago: int = 2,   # token must NOT be created too recently, e.g. last 2 hours
-        trade_opened_less_than_x_mins_ago: int = 60, # trade must be opened within these many minutes
+        creation_min_days_ago: int = 90,  # token must be created within these many days
+        creation_max_hours_ago: int = 2,  # token must NOT be created too recently, e.g. last 2 hours
+        trade_opened_less_than_x_mins_ago: int = 60,  # trade must be opened within these many minutes
         random_sample_size: int = 10,
         retention_probability: float = 0.95,
         next_tradable_hours: int = 24,
@@ -87,7 +89,6 @@ class PiggyBackSniper:
     def run(self):
         self.bot.run()
 
-
     # ---------------------------------------------------------
     # PEAK-AND-RETRACE STRATEGY
     # ---------------------------------------------------------
@@ -117,7 +118,7 @@ class PiggyBackSniper:
         if current_price > max_price:
             max_price = current_price
 
-        current_factor = (current_price / entry_price) if entry_price > 0 else 0
+        (current_price / entry_price) if entry_price > 0 else 0
         max_factor = (max_price / entry_price) if entry_price > 0 else 0
 
         # 1) Partial-sell thresholds
@@ -145,23 +146,26 @@ class PiggyBackSniper:
         token_addr = row["token_address"]
 
         # Determine total fraction to sell in one operation
-        for (threshold_factor, fraction_sold_target) in reversed(partial_sells_table):
-            if max_factor >= threshold_factor and partial_sold_cum < fraction_sold_target:
+        for threshold_factor, fraction_sold_target in reversed(partial_sells_table):
+            if (
+                max_factor >= threshold_factor
+                and partial_sold_cum < fraction_sold_target
+            ):
                 # Sell the difference
                 fraction_to_sell_now = fraction_sold_target - partial_sold_cum
                 tokens_to_sell = original_amount * fraction_to_sell_now
                 if tokens_to_sell > 0:
                     logging.info(
                         f"{GREEN}Crossed {threshold_factor}× => partial sells up to "
-                        f"{fraction_sold_target*100:.0f}% total.{RESET}"
+                        f"{fraction_sold_target * 100:.0f}% total.{RESET}"
                     )
                     part_profit = self.bot.sell_token(
                         token_address=token_addr,
                         token_amount=tokens_to_sell,
-                        partial_sold_cumulative = float(fraction_sold_target),
-                        realized_pnl = float(realized_profit_usd),
-                        stoploss_price = None,
-                        max_recorded_price = float(max_price)
+                        partial_sold_cumulative=float(fraction_sold_target),
+                        realized_pnl=float(realized_profit_usd),
+                        stoploss_price=None,
+                        max_recorded_price=float(max_price),
                     )
                     if realized_profit_usd is None or math.isnan(realized_profit_usd):
                         realized_profit_usd = 0.0
@@ -172,7 +176,9 @@ class PiggyBackSniper:
         # If partial_sold_cum >= 1.0 => position fully closed
         if partial_sold_cum >= 1.0:
             net_profit = realized_profit_usd - entry_price * original_amount
-            self.bot.log_exit_and_remove(idx, net_profit, realized_profit_usd, partial_sold_cum, max_price)
+            self.bot.log_exit_and_remove(
+                idx, net_profit, realized_profit_usd, partial_sold_cum, max_price
+            )
             return
 
         if partial_sold_cum == 0.0:
@@ -185,6 +191,7 @@ class PiggyBackSniper:
                     return 0.70 * mfactor  # 70% of mfactor
                 else:
                     return mfactor
+
             stop_factor = get_trailing_stop_factor(max_factor)
             stop_price = entry_price * stop_factor
 
@@ -197,7 +204,9 @@ class PiggyBackSniper:
                     "Waiting to confirm in next check."
                 )
             elif stoploss_count == 1:
-                self.bot.positions_df.loc[idx, "stoploss_count"] = 2  # Optional: set to 2 or reset to 0 after selling
+                self.bot.positions_df.loc[idx, "stoploss_count"] = (
+                    2  # Optional: set to 2 or reset to 0 after selling
+                )
                 logging.info(
                     f"Stoploss confirmed for {token_addr[:6]}...: Price={current_price:.4f} < stop={stop_price:.4f} for second consecutive check."
                 )
@@ -209,17 +218,19 @@ class PiggyBackSniper:
                         f"Selling leftover fraction={leftover_frac:.2%}.{RESET}"
                     )
 
-                    self.bot.buy_cooldown_tokens.add(token_addr) # Add to cooldown
+                    self.bot.buy_cooldown_tokens.add(token_addr)  # Add to cooldown
 
-                    logging.info(f"Selling {tokens_leftover} tokens of {token_addr[:6]}...")
+                    logging.info(
+                        f"Selling {tokens_leftover} tokens of {token_addr[:6]}..."
+                    )
                     part_profit = self.bot.sell_token(
-                            token_address=token_addr,
-                            token_amount=tokens_leftover,
-                            partial_sold_cumulative = float(1.0),
-                            realized_pnl = float(realized_profit_usd),
-                            stoploss_price = float(stop_price),
-                            max_recorded_price = float(max_price)
-                        )
+                        token_address=token_addr,
+                        token_amount=tokens_leftover,
+                        partial_sold_cumulative=float(1.0),
+                        realized_pnl=float(realized_profit_usd),
+                        stoploss_price=float(stop_price),
+                        max_recorded_price=float(max_price),
+                    )
                     if part_profit:
                         if realized_profit_usd is None:
                             realized_profit_usd = 0.0
@@ -230,26 +241,33 @@ class PiggyBackSniper:
                             f"{YELLOW}Position closed by trailing stop. Removing from DataFrame. (Token={token_addr[:6]}...){RESET}"
                         )
                         with self.bot.positions_lock:
-                            self.bot.positions_df.loc[idx, "realized_profit_usd"] = realized_profit_usd
+                            self.bot.positions_df.loc[idx, "realized_profit_usd"] = (
+                                realized_profit_usd
+                            )
                             self.bot.positions_df.drop(idx, inplace=True)
                 return
         else:
             # reset stoploss count
             if row.get("stoploss_count", 0) > 0:
                 self.bot.positions_df.loc[idx, "stoploss_count"] = 0
-                logging.info(f"Stoploss breach reset for {token_addr[:6]} (price recovered above stoploss).")
-
+                logging.info(
+                    f"Stoploss breach reset for {token_addr[:6]} (price recovered above stoploss)."
+                )
 
         # If not fully closed, just update partials and max_price
         with self.bot.positions_lock:
             if idx in self.bot.positions_df.index:
-                self.bot.positions_df.loc[idx, "partial_sold_cumulative"] = partial_sold_cum
-                self.bot.positions_df.loc[idx, "realized_profit_usd"] = realized_profit_usd
+                self.bot.positions_df.loc[idx, "partial_sold_cumulative"] = (
+                    partial_sold_cum
+                )
+                self.bot.positions_df.loc[idx, "realized_profit_usd"] = (
+                    realized_profit_usd
+                )
                 self.bot.positions_df.loc[idx, "max_price"] = max_price
+
 
 def main():
     bot = PiggyBackSniper(
-
         birdeye_api_key=Config.BIRDEYE_API_KEY,
         wallet_address=Config.SNIPER_WALLET_ADDRESS,
         private_key_base58=Config.SNIPER_KEY_BASE58,
@@ -260,8 +278,8 @@ def main():
         mc_bounds=(50_000, 10_000_000),
         # scout_interval=(30, "minutes"), # 5 minutes
         scout_interval=(10, "seconds"),
-        position_check_interval=10,   # 5 seconds
-        paper_trading=False,          # Enable paper trading
+        position_check_interval=10,  # 5 seconds
+        paper_trading=False,  # Enable paper trading
         trade_opened_less_than_x_mins_ago=180,  # 3 hours
         random_sample_size=30,
         next_tradable_hours=24,

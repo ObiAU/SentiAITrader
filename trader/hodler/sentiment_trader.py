@@ -1,34 +1,30 @@
 import logging
-import os
-import signal
-import sys
-import threading
 import time
 import warnings
-from datetime import datetime, timezone
-from typing import List, Tuple, Dict, Any
+from datetime import datetime
+from typing import List, Tuple
 
-import pandas as pd
-from solana.rpc.api import Client
-from solders import keypair as Keypair
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
-from trader.agentic.cult_agent import CultAgent
 from trader.agentic.sentiment_agent import *
 from trader.agentic.src.subreddit_scout import SubredditScout
 from trader.agentic.utils import *
 from trader.config import Config
 from trader.core.base_robot import *
 from trader.database.log_utils import DatabaseLogger
-from trader.database.supa_client import insert_row, update_row, execute_sql_query
+from trader.database.supa_client import execute_sql_query
 from trader.sniper.analysis import analyze_token_drawdowns_6m
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 class SentimentConfidencePairStruct(BaseModel):
     score: float
     confidence: float
+
 
 class CultTrader:
     """
@@ -49,7 +45,10 @@ class CultTrader:
         starting_usdc_balance: float = 1000.0,
         max_open_trades: int = 10,
         usd_per_trade: float = 5.0,
-        scout_interval: Tuple[int, Literal['seconds', 'minutes', 'hours']] = (6, 'hours'),
+        scout_interval: Tuple[int, Literal["seconds", "minutes", "hours"]] = (
+            6,
+            "hours",
+        ),
         position_check_interval: int = 30,
         analyze_potential_entries_interval: int = 60,
         paper_trading: bool = False,
@@ -60,13 +59,13 @@ class CultTrader:
         max_drawdown_allowed: float = 70.0,
         top10_holder_percent_limit: float = 0.30,
         creation_max_days_ago: int = None,
-        creation_min_days_ago: int = 90,   # token must be created within these many days
-        creation_max_hours_ago: int = 2,   # token must NOT be created too recently, e.g. last 2 hours
-        trade_opened_less_than_x_mins_ago: int = 60, # trade must be opened within these many minutes
+        creation_min_days_ago: int = 90,  # token must be created within these many days
+        creation_max_hours_ago: int = 2,  # token must NOT be created too recently, e.g. last 2 hours
+        trade_opened_less_than_x_mins_ago: int = 60,  # trade must be opened within these many minutes
         random_sample_size: int = 10,
         retention_probability: float = 0.95,
-        buy_cooldown_seconds: int = 1800, # 30 minutes
-        sell_cooldown_seconds: int = 604800, # 1 week
+        buy_cooldown_seconds: int = 1800,  # 30 minutes
+        sell_cooldown_seconds: int = 604800,  # 1 week
         next_tradable_hours: int = 48,
         sma_window_hours: int = 48,
     ):
@@ -75,7 +74,7 @@ class CultTrader:
         """
         self.bot = BaseBot(
             strategy_function=self.apply_sentiment_aware_strategy,
-            analyze_function = self.sentiment_aware_analyze_and_buy,
+            analyze_function=self.sentiment_aware_analyze_and_buy,
             wallet_address=wallet_address,
             birdeye_api_key=birdeye_api_key,
             private_key_base58=private_key_base58,
@@ -111,11 +110,8 @@ class CultTrader:
         self.db_logger = DatabaseLogger(table_name, bot_type)
         self.subreddit = None
 
-
-    
     def run(self):
         self.bot.run()
-
 
     # --------------------------------------------------------------------
     # AI Methods
@@ -134,15 +130,13 @@ class CultTrader:
         except Exception as e:
             logging.error(f"Subreddit scouting failed. Error: {e}")
 
-
     # maybe have it run on each source separately -- perform bias factor calc manually
     # flipside is we want single model to see biggest picture + single source of truth
     def capture_sentiment(
-            self, 
-            token_address: str,
-            # average_holder_time: float = None,
-            ):
-
+        self,
+        token_address: str,
+        # average_holder_time: float = None,
+    ):
         query = f"""
         SELECT sentiment_score, confidence_score, timestamp
         FROM sentiment
@@ -154,18 +148,19 @@ class CultTrader:
         query = query.strip()
         sentiment_records = execute_sql_query(query)
 
-        if sentiment_records and 'result' in sentiment_records[0]:
-            latest = sentiment_records[0]['result']
-            sentiment_score = latest.get('sentiment_score', None)
-            confidence_score = latest.get('confidence_score', None)
+        if sentiment_records and "result" in sentiment_records[0]:
+            latest = sentiment_records[0]["result"]
+            sentiment_score = latest.get("sentiment_score", None)
+            confidence_score = latest.get("confidence_score", None)
             if sentiment_score is not None and confidence_score is not None:
-                logging.info(f"Using cached sentiment score for {token_address}: {sentiment_score}")
-                
+                logging.info(
+                    f"Using cached sentiment score for {token_address}: {sentiment_score}"
+                )
+
                 return SentimentConfidencePairStruct(
-                    score=sentiment_score, 
-                    confidence=confidence_score
-                    )
-        
+                    score=sentiment_score, confidence=confidence_score
+                )
+
         if token_address in self.bot.token_metadata_cache:
             metadata = self.bot.token_metadata_cache[token_address]
 
@@ -183,25 +178,25 @@ class CultTrader:
         avg_holders_dsitribution = metadata.get("holders_to_market_cap_ratio", None)
         marketcap = metadata.get("market_cap", None)
         links = metadata.get("urls", [])
-        
+
         self.globalise_subreddit(ticker, token_name)
 
         payload = SentimentAgentInput(
-                ticker=ticker,
-                token_name = token_name,
-                max_tweets=10,
-                max_reddit_posts=2,
-                hours=24,
-                market_cap=marketcap,
-                avg_holders_distribution=avg_holders_dsitribution,
-                holders_percent_increase_24h=holders_percent_increase_24h,
-                volume_marketcap_ratio=volume_marketcap_ratio,
-                volume_24h=volume_24h,
-                num_holders=num_holders,
-                buy_sell_ratio_24h=buy_sell_ratio_24h,
-                found_subreddit=self.subreddit,
-                links = links
-            )
+            ticker=ticker,
+            token_name=token_name,
+            max_tweets=10,
+            max_reddit_posts=2,
+            hours=24,
+            market_cap=marketcap,
+            avg_holders_distribution=avg_holders_dsitribution,
+            holders_percent_increase_24h=holders_percent_increase_24h,
+            volume_marketcap_ratio=volume_marketcap_ratio,
+            volume_24h=volume_24h,
+            num_holders=num_holders,
+            buy_sell_ratio_24h=buy_sell_ratio_24h,
+            found_subreddit=self.subreddit,
+            links=links,
+        )
 
         try:
             results = self.sentinel.analyze_ticker_sentiment(payload)
@@ -217,7 +212,7 @@ class CultTrader:
                 buy_sell_ratio_24h=buy_sell_ratio_24h,
                 volume_marketcap_ratio=volume_marketcap_ratio,
                 holders_percent_increase_24h=holders_percent_increase_24h,
-                links=links
+                links=links,
             )
 
             return results.sentiment
@@ -227,7 +222,6 @@ class CultTrader:
             return None
 
     def capture_cultism(self, ticker, token_name, token_address: str, num_holders):
-
         query = f"""
         SELECT cult_score, timestamp
         FROM cultism
@@ -239,12 +233,14 @@ class CultTrader:
         query = query.strip()
         cult_records = execute_sql_query(query)
 
-        if cult_records and 'result' in cult_records[0]:
-            latest_cultism = cult_records[0]['result']
-            cult_score = latest_cultism.get('overall_score', None)
+        if cult_records and "result" in cult_records[0]:
+            latest_cultism = cult_records[0]["result"]
+            cult_score = latest_cultism.get("overall_score", None)
 
             if cult_score is not None:
-                logging.info(f"Using cached cultism score for {token_address}: {cult_score}")
+                logging.info(
+                    f"Using cached cultism score for {token_address}: {cult_score}"
+                )
                 return cult_score
 
         try:
@@ -256,7 +252,6 @@ class CultTrader:
             logging.error(f"Failed to retrieve cultism of {ticker}. Error: {e}")
 
             return 0.0
-    
 
     # ---------------------------------------------------------
     # SENTIMENT-AWARE BUY
@@ -269,13 +264,20 @@ class CultTrader:
         if not candidate_tokens:
             return
 
-        tokens_with_analysis = self.ai_analyze_tokens(self.bot.bird_client, candidate_tokens, self.bot.trade_opened_less_than_x_mins_ago)
+        tokens_with_analysis = self.ai_analyze_tokens(
+            self.bot.bird_client,
+            candidate_tokens,
+            self.bot.trade_opened_less_than_x_mins_ago,
+        )
 
         return tokens_with_analysis
-    
-    
-    def ai_analyze_tokens(self, client: BirdEyeClient, tokens: List[TokenMetadata], trade_opened_less_than_x_mins_ago: int=60):
 
+    def ai_analyze_tokens(
+        self,
+        client: BirdEyeClient,
+        tokens: List[TokenMetadata],
+        trade_opened_less_than_x_mins_ago: int = 60,
+    ):
         for token in tokens:
             address = token.address
             if address in self.bot.token_metadata_cache:
@@ -284,53 +286,70 @@ class CultTrader:
             else:
                 metadata = fetch_token_overview_and_metadata(address)
                 self.bot.token_metadata_cache[address] = metadata
-            
+
             # TOKEN CATEGORISATION
             # categorisation -- make sure filtered to solana first (should be done in scout method)
             logging.info(f"Categorising token {metadata.get('ticker')}")
-            result = categorise_token(metadata.get("ticker"), metadata.get("name"), metadata.get("logoURI"), metadata.get("description"))
+            result = categorise_token(
+                metadata.get("ticker"),
+                metadata.get("name"),
+                metadata.get("logoURI"),
+                metadata.get("description"),
+            )
 
             if result.category not in ("Cult", "Utility/Layer1/Layer2"):
-                logging.info(f"Skipping token {metadata.get('ticker')} as it is not a cult or utility token")
+                logging.info(
+                    f"Skipping token {metadata.get('ticker')} as it is not a cult or utility token"
+                )
                 continue
-            logging.info(f"Categorised token {metadata.get('ticker')} as {result.category}")
+            logging.info(
+                f"Categorised token {metadata.get('ticker')} as {result.category}"
+            )
 
             # DRAWDOWN-RECOVERY EVENTS
             # drawdowns -- whhere does new dd event begin
             logging.info(f"Analyzing drawdowns for token {metadata.get('ticker')}")
             dd_events = analyze_token_drawdowns_6m(
-                                                client=client,
-                                                address=address,
-                                                # drop_threshold=0.55,
-                                                recovery_threshold=0.95,
-                                                candles="1D"
-                                                )
-            
+                client=client,
+                address=address,
+                # drop_threshold=0.55,
+                recovery_threshold=0.95,
+                candles="1D",
+            )
+
             if not isinstance(dd_events, dict):
-                raise TypeError(f"Expected dd_events to be a dict, got {type(dd_events)}")
-            
+                raise TypeError(
+                    f"Expected dd_events to be a dict, got {type(dd_events)}"
+                )
+
             drawdown_count = dd_events.get("num_drawdowns", 0)
             drawdown_resilience_score = dd_events.get("drawdown_resilience_score", 0.0)
-            logging.info(f"Drawdown count: {drawdown_count}, Drawdown resilience score: {drawdown_resilience_score}")
+            logging.info(
+                f"Drawdown count: {drawdown_count}, Drawdown resilience score: {drawdown_resilience_score}"
+            )
 
             if drawdown_count < 2:
                 continue
 
-            # SENTIMENT ANALYTICS       
-            sentiment = self.capture_sentiment(address) 
+            # SENTIMENT ANALYTICS
+            sentiment = self.capture_sentiment(address)
             logging.info(f"Sentiment score for {address}: {sentiment.score:.2f}")
-                    
+
             # === Score-based buy decision === removed cultiness (FOR NOW)
             s_score, dd_score, avg_score = self.compute_buy_scores(
-                sentiment=sentiment, 
+                sentiment=sentiment,
                 drawdown_resilience_score=drawdown_resilience_score,
                 dd_score_weight=0.5,
-                sentiment_weight=0.5
-                )
+                sentiment_weight=0.5,
+            )
 
-            logging.info(f"Calculated scores: sentiment score: {s_score:.2f}, Drawdown score: {dd_score:.2f}")
+            logging.info(
+                f"Calculated scores: sentiment score: {s_score:.2f}, Drawdown score: {dd_score:.2f}"
+            )
             logging.info(f"Calculated average score: {avg_score:.2f}")
-            if not self.decide_buy(s_score, dd_score, avg_score, avg_threshold=0.6, min_threshold=0.4):
+            if not self.decide_buy(
+                s_score, dd_score, avg_score, avg_threshold=0.6, min_threshold=0.4
+            ):
                 logging.info(
                     f"Skipping {address} => (sentiment={s_score:.2f}, drawdown={dd_score:.2f}) did not meet thresholds."
                 )
@@ -342,14 +361,13 @@ class CultTrader:
             if usd_to_buy <= 0:
                 logging.info(f"Computed buy size is 0. Skipping token {address}.")
                 continue
-            
+
             if token.tx_time and isinstance(token.tx_time.timestamp(), datetime):
                 time_since_tx = time.time() - token.tx_time.timestamp()
                 if time_since_tx < trade_opened_less_than_x_mins_ago * 60:
                     token.open_new_position = True
-        
+
         return tokens
-    
 
     def decide_buy(
         self,
@@ -357,9 +375,8 @@ class CultTrader:
         drawdown_score: float,
         avg_score: float,
         avg_threshold: float = 0.7,
-        min_threshold: float = 0.4
+        min_threshold: float = 0.4,
     ) -> bool:
-        
         if drawdown_score < min_threshold or sentiment_score < min_threshold:
             return False
 
@@ -368,22 +385,19 @@ class CultTrader:
         if avg_score >= avg_threshold and all(s >= min_threshold for s in scores):
             return True
         return False
-    
 
     # compute buy size based on avg score
-    def compute_buy_size(
-        self,
-        avg_score: float,
-        base_usd_per_trade: float
-    ) -> float:
+    def compute_buy_size(self, avg_score: float, base_usd_per_trade: float) -> float:
         # e.g.  if avg_score=0.7 => buy exactly base
         #       if avg_score=1.0 => buy 2x base
         #       linear scale in between
         multiplier = 1.0 + (avg_score - 0.7) * 2.5
-        multiplier = max(0.0, min(multiplier, 2.0)) # between 0 and 2x buys
+        multiplier = max(0.0, min(multiplier, 2.0))  # between 0 and 2x buys
 
         potential_buy = base_usd_per_trade * multiplier
-        logging.info(f"Potential buy: {potential_buy:.2f} USDC based on avg_score={avg_score:.2f}")
+        logging.info(
+            f"Potential buy: {potential_buy:.2f} USDC based on avg_score={avg_score:.2f}"
+        )
 
         total_holdings_value = self.bot.compute_total_holdings_value()  # in USDC
         logging.info(f"Total holdings value: {total_holdings_value:.2f} USDC")
@@ -398,19 +412,18 @@ class CultTrader:
         # req higher average score for buys above 5% holdings
         if potential_buy > 0.05 * total_holdings_value and avg_score < 0.8:
             potential_buy = 0.05 * total_holdings_value
-        
+
         if potential_buy < base_usd_per_trade:
             potential_buy = base_usd_per_trade
 
         return potential_buy
-
 
     def compute_buy_scores(
         self,
         sentiment: SentimentResult,
         drawdown_resilience_score: float,
         dd_score_weight: float = 0.5,  # 50% weight for drawdown resilience
-        sentiment_weight: float = 0.5  # 50% weight for sentiment
+        sentiment_weight: float = 0.5,  # 50% weight for sentiment
     ) -> Tuple[float, float, float]:
         """
         Compute buy scores based on:
@@ -444,7 +457,6 @@ class CultTrader:
 
         return sentiment_score, drawdown_resilience_score, avg_score
 
-
     # ---------------------------------------------------------
     # SENTIMENT-AWARE SELL
     # ---------------------------------------------------------
@@ -452,7 +464,7 @@ class CultTrader:
     def decide_sentiment_aware_sell(
         self,
         results: SentimentResult,
-        alpha: float = 0.7  # 70% sent -- 30% confidence weighting -- set to 1 to remove confidence score weighting
+        alpha: float = 0.7,  # 70% sent -- 30% confidence weighting -- set to 1 to remove confidence score weighting
     ) -> Tuple[float, str]:
         """
         Decide on a fraction to sell (0.0 to 1.0) based on weighted scaled sentiment.
@@ -466,7 +478,10 @@ class CultTrader:
         scaled_sentiment = alpha * sentiment + (1 - alpha) * (sentiment * confidence)
 
         if scaled_sentiment < 0.15:
-            return (1.0, f"Ultra negative scaled sentiment < 0.15 => Full exit (scaled={scaled_sentiment:.2f}, raw={sentiment:.2f}, confidence={confidence:.2f})")
+            return (
+                1.0,
+                f"Ultra negative scaled sentiment < 0.15 => Full exit (scaled={scaled_sentiment:.2f}, raw={sentiment:.2f}, confidence={confidence:.2f})",
+            )
 
         # if scaled_sentiment < 0.35:
         #     return (0.25, f"Scaled sentiment < 0.35 => partial exit (25%) (scaled={scaled_sentiment:.2f}, raw={sentiment:.2f}, confidence={confidence:.2f})")
@@ -475,9 +490,10 @@ class CultTrader:
         #     return (0.10, f"Scaled sentiment < 0.50 => partial exit (10%) (scaled={scaled_sentiment:.2f}, raw={sentiment:.2f}, confidence={confidence:.2f})")
 
         # Otherwise => no sell
-        return (0.0, f"No sell: scaled sentiment={scaled_sentiment:.2f} (raw={sentiment:.2f}, confidence={confidence:.2f})")
-
-
+        return (
+            0.0,
+            f"No sell: scaled sentiment={scaled_sentiment:.2f} (raw={sentiment:.2f}, confidence={confidence:.2f})",
+        )
 
     def apply_sentiment_aware_strategy(self, idx: int, current_price: float):
         with self.bot.positions_lock:
@@ -489,11 +505,11 @@ class CultTrader:
             return
 
         token_address = row["token_address"]
-        entry_price   = row["entry_price"]
-        original_amt  = row["entry_amount"]
-        partial_sold  = row["partial_sold_cumulative"]
-        realized_pnl  = row["realized_profit_usd"]
-        max_price     = row["max_price"]
+        entry_price = row["entry_price"]
+        original_amt = row["entry_amount"]
+        partial_sold = row["partial_sold_cumulative"]
+        realized_pnl = row["realized_profit_usd"]
+        max_price = row["max_price"]
 
         # Update max price if needed
         if current_price > max_price:
@@ -511,34 +527,35 @@ class CultTrader:
         # ]
 
         partial_sells_table = [
-            (1.5, 0.15), 
-            (2.5, 0.25), 
-            (3.0, 0.30),  
-            (4.0, 0.35),  
-            (5.0, 0.40),  
-            (6.0, 0.45),  
+            (1.5, 0.15),
+            (2.5, 0.25),
+            (3.0, 0.30),
+            (4.0, 0.35),
+            (5.0, 0.40),
+            (6.0, 0.45),
             (7.0, 0.50),
             (8.0, 0.55),
             (9.0, 0.60),
             (10.0, 0.65),
             (15.0, 0.90),
-            (20.0, 1.0),   
+            (20.0, 1.0),
         ]
 
-        current_factor = (current_price / entry_price) if entry_price > 0 else 0
-        max_factor     = (max_price / entry_price) if entry_price > 0 else 0
+        (current_price / entry_price) if entry_price > 0 else 0
+        max_factor = (max_price / entry_price) if entry_price > 0 else 0
 
         total_fraction_to_sell = 0.0
-        for (threshold_factor, fraction_sold_target) in partial_sells_table:
+        for threshold_factor, fraction_sold_target in partial_sells_table:
             if max_factor >= threshold_factor and partial_sold < fraction_sold_target:
                 # Sell enough to reach fraction_sold_target
                 diff = fraction_sold_target - partial_sold
                 if diff > 0:
                     total_fraction_to_sell += diff
                     partial_sold = fraction_sold_target
-        
-        logging.info(f"Applying sentiment-aware strategy for token {row['token_address']}")
 
+        logging.info(
+            f"Applying sentiment-aware strategy for token {row['token_address']}"
+        )
 
         if total_fraction_to_sell > 0:
             tokens_to_sell = original_amt * total_fraction_to_sell
@@ -548,17 +565,25 @@ class CultTrader:
                 partial_sold_cumulative=float(partial_sold),
                 realized_pnl=float(realized_pnl),
                 stoploss_price=None,
-                max_recorded_price=float(max_price)
+                max_recorded_price=float(max_price),
             )
             if part_profit:
                 realized_pnl += part_profit
-                logging.info(f"Price-based partial exit triggered. Sold fraction: {total_fraction_to_sell*100:.1f}%")
+                logging.info(
+                    f"Price-based partial exit triggered. Sold fraction: {total_fraction_to_sell * 100:.1f}%"
+                )
 
             # If partial_sold >= 1.0 => fully out. Remove from DF and return.
             if partial_sold >= 1.0:
                 net_profit = realized_pnl - (entry_price * original_amt)
-                self.bot.log_exit_and_remove(idx, net_profit, realized_pnl, partial_sold, max_price,
-                                             reason="Fully sold from partial sells")
+                self.bot.log_exit_and_remove(
+                    idx,
+                    net_profit,
+                    realized_pnl,
+                    partial_sold,
+                    max_price,
+                    reason="Fully sold from partial sells",
+                )
                 return
 
         # ---------------------------------------
@@ -578,13 +603,19 @@ class CultTrader:
                     partial_sold_cumulative=1.0,
                     realized_pnl=realized_pnl,
                     stoploss_price=stop_price,
-                    max_recorded_price=max_price
+                    max_recorded_price=max_price,
                 )
                 if part_profit:
                     realized_pnl += part_profit
                 net_profit = realized_pnl - (entry_price * original_amt)
-                self.bot.log_exit_and_remove(idx, net_profit, realized_pnl, partial_sold, max_price,
-                                            reason=f"Trailing stop triggered @ {stop_price:.4f}")
+                self.bot.log_exit_and_remove(
+                    idx,
+                    net_profit,
+                    realized_pnl,
+                    partial_sold,
+                    max_price,
+                    reason=f"Trailing stop triggered @ {stop_price:.4f}",
+                )
             return
 
         # ---------------------------------------
@@ -592,7 +623,9 @@ class CultTrader:
         # ---------------------------------------
         sentiment = self.capture_sentiment(token_address)
         fraction_to_sell, reason = self.decide_sentiment_aware_sell(sentiment)
-        logging.info(f"Sentiment-based sell: {fraction_to_sell*100:.1f}% for reason:\n {reason}")
+        logging.info(
+            f"Sentiment-based sell: {fraction_to_sell * 100:.1f}% for reason:\n {reason}"
+        )
 
         if fraction_to_sell >= 1.0:
             # Full exit
@@ -605,17 +638,19 @@ class CultTrader:
                     partial_sold_cumulative=float(1.0),
                     realized_pnl=float(realized_pnl),
                     stoploss_price=None,
-                    max_recorded_price=float(max_price)
+                    max_recorded_price=float(max_price),
                 )
                 if part_profit:
                     realized_pnl += part_profit
             net_profit = realized_pnl - (entry_price * original_amt)
-            self.bot.log_exit_and_remove(idx, net_profit, realized_pnl, partial_sold, max_price, reason=reason)
+            self.bot.log_exit_and_remove(
+                idx, net_profit, realized_pnl, partial_sold, max_price, reason=reason
+            )
             return
 
         elif fraction_to_sell > 0.0:
             # Partial exit
-            leftover_frac  = 1.0 - partial_sold
+            leftover_frac = 1.0 - partial_sold
             partial_to_sell = fraction_to_sell * leftover_frac
             if partial_to_sell > 0:
                 tokens_to_sell = original_amt * partial_to_sell
@@ -625,7 +660,7 @@ class CultTrader:
                     partial_sold_cumulative=float(partial_sold + fraction_to_sell),
                     realized_pnl=float(realized_pnl),
                     stoploss_price=None,
-                    max_recorded_price=float(max_price)
+                    max_recorded_price=float(max_price),
                 )
                 if part_profit:
                     realized_pnl += part_profit
@@ -638,20 +673,18 @@ class CultTrader:
         with self.bot.positions_lock:
             if idx in self.bot.positions_df.index:
                 self.bot.positions_df.loc[idx, "partial_sold_cumulative"] = partial_sold
-                self.bot.positions_df.loc[idx, "realized_profit_usd"]     = realized_pnl
-                self.bot.positions_df.loc[idx, "max_price"]               = max_price
-                self.bot.positions_df.loc[idx, "last_price"]              = current_price
+                self.bot.positions_df.loc[idx, "realized_profit_usd"] = realized_pnl
+                self.bot.positions_df.loc[idx, "max_price"] = max_price
+                self.bot.positions_df.loc[idx, "last_price"] = current_price
 
-
-    def sentiment_aware_trailing_stop(self, sentiment, base_stop_factor = 0.50):
-
+    def sentiment_aware_trailing_stop(self, sentiment, base_stop_factor=0.50):
         if sentiment > 0.70:
-            trailing_stop_factor = 0.70 # higher stop for v good sentiment
+            trailing_stop_factor = 0.70  # higher stop for v good sentiment
         elif sentiment < 0.50:
-            trailing_stop_factor = 0.40 # strict stop for lower sentiment
+            trailing_stop_factor = 0.40  # strict stop for lower sentiment
         else:
             trailing_stop_factor = base_stop_factor
-        
+
         return trailing_stop_factor
 
 
@@ -667,7 +700,7 @@ def main():
         usd_per_trade=5.0,
         scout_interval=(6, "hours"),  # 6 hours
         # scout_interval=(10, "seconds"),
-        position_check_interval=30,   # whilst running -- 300 second position checks
+        position_check_interval=30,  # whilst running -- 300 second position checks
         paper_trading=False,
         # trade_opened_less_than_x_mins_ago=2880, # 48 hrs # None => all trades -- hits rate limits so will do like 300
         trade_opened_less_than_x_mins_ago=300,
@@ -678,6 +711,7 @@ def main():
     bot.run()
     # bot.bot.scout_and_buy()
     # res = bot.sentiment_aware_analyze_and_buy([TokenMetadata(address="63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9")])
+
 
 if __name__ == "__main__":
     main()

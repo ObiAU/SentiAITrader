@@ -1,5 +1,3 @@
-import asyncio
-import base58
 import base64
 import json
 import logging
@@ -9,13 +7,10 @@ import time
 from typing import Tuple, Optional
 
 from solana.rpc.api import Client
-from solana.rpc.async_api import AsyncClient
-from solana.rpc.commitment import Processed, Finalized
-from solana.rpc.core import RPCException
+from solana.rpc.commitment import Processed
 from solana.rpc.types import TxOpts
 from solders import message
 from solders.keypair import Keypair
-from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction import VersionedTransaction
 
@@ -58,18 +53,22 @@ def update_holdings_from_transaction(
     for pre in pre_balances:
         if not pre.mint or not pre.owner:
             continue
-        pre_balance_map[(str(pre.mint), str(pre.owner))] = int(pre.ui_token_amount.amount)
+        pre_balance_map[(str(pre.mint), str(pre.owner))] = int(
+            pre.ui_token_amount.amount
+        )
 
     # post
     post_balance_map = {}
     for post in post_balances:
         if not post.mint or not post.owner:
             continue
-        post_balance_map[(str(post.mint), str(post.owner))] = int(post.ui_token_amount.amount)
+        post_balance_map[(str(post.mint), str(post.owner))] = int(
+            post.ui_token_amount.amount
+        )
 
     # check which tokens changed
     changed_mints = set()
-    for (mint, owner) in set(pre_balance_map.keys()) | set(post_balance_map.keys()):
+    for mint, owner in set(pre_balance_map.keys()) | set(post_balance_map.keys()):
         if owner == user_pubkey:
             changed_mints.add(mint)
 
@@ -87,14 +86,13 @@ def update_holdings_from_transaction(
 
         local_time = local_info.get("last_update_time", 0)
         if block_time > local_time:
-
             pre_amt = pre_balance_map.get((mint, user_pubkey), 0)
             post_amt = post_balance_map.get((mint, user_pubkey), 0)
 
-            decimals = local_info.get("decimals", 0) # local decimals
+            decimals = local_info.get("decimals", 0)  # local decimals
 
             diff_raw = post_amt - pre_amt
-            diff_float = diff_raw / (10 ** decimals)
+            diff_float = diff_raw / (10**decimals)
 
             # update holdings balance (local balance)
             holdings[mint]["balance"] = holdings[mint]["balance"] + diff_float
@@ -114,7 +112,7 @@ def verify_tx_and_get_balance_change(
     tx_sig: str,
     user_pubkey: str,
     output_mint: str,
-    output_decimals: int
+    output_decimals: int,
 ) -> Tuple[str, float]:
     """
     Verifies if the transaction went through and calculates the balance change
@@ -131,18 +129,24 @@ def verify_tx_and_get_balance_change(
         tx_signature = Signature.from_string(tx_sig)
 
         # Get transaction response for "Finalized" commitment level
-        tx_response = client.get_transaction(tx_signature, max_supported_transaction_version=2)
+        tx_response = client.get_transaction(
+            tx_signature, max_supported_transaction_version=2
+        )
         if not tx_response.value:
             return "notFound", 0.0, None
 
         # Extract metadata and perform finalized-level operations
         meta = tx_response.value.transaction.meta
-        slot_status = tx_response.value.slot
 
         # Check finalized status
-        tx_status_resp = client.get_signature_statuses([tx_signature], search_transaction_history=True)
+        tx_status_resp = client.get_signature_statuses(
+            [tx_signature], search_transaction_history=True
+        )
 
-        is_finalized = tx_status_resp.value[0].confirmation_status.__str__() == "TransactionConfirmationStatus.Finalized"
+        is_finalized = (
+            tx_status_resp.value[0].confirmation_status.__str__()
+            == "TransactionConfirmationStatus.Finalized"
+        )
         if not is_finalized:
             logging.warning(f"Transaction {tx_sig} is not finalized yet.")
             return "notFinalized", 0.0, None
@@ -167,9 +171,10 @@ def verify_tx_and_get_balance_change(
                     (
                         int(pre.ui_token_amount.amount)
                         for pre in pre_balances
-                        if str(pre.mint) == output_mint and str(pre.owner) == user_pubkey
+                        if str(pre.mint) == output_mint
+                        and str(pre.owner) == user_pubkey
                     ),
-                    0
+                    0,
                 )
                 balance_change = (post_balance - pre_balance) / (10**output_decimals)
                 break
@@ -178,28 +183,28 @@ def verify_tx_and_get_balance_change(
         if balance_change > 0:
             return "finalized", balance_change, post_balance
         else:
-            logging.warning(f"Transaction {tx_sig} finalized but no balance change detected.")
+            logging.warning(
+                f"Transaction {tx_sig} finalized but no balance change detected."
+            )
             return "finalized", 0.0, None
 
     except Exception as e:
         logging.error(f"Exception occurred while verifying transaction: {e}")
         return "notFound", 0.0, None
 
+
 def get_jupiter_usd_price(
-    output_mint: str,
-    output_mint_decimals: int,
-    usd: float = 10
-    ) -> float:
+    output_mint: str, output_mint_decimals: int, usd: float = 10
+) -> float:
     """
     Fetches the current price of a token in USD from Jupiter's /price endpoint.
     """
-    url = "https://quote-api.jup.ag/v6/price"
-        # Step 1: Get a quote
+    # Step 1: Get a quote
     quote_resp = get_jupiter_quote(
-        input_mint='EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', # USDC
+        input_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
         output_mint=output_mint,
-        amount_in=usd*10**6,  # 10 USDC
-        max_slippage_bps=300
+        amount_in=usd * 10**6,  # 10 USDC
+        max_slippage_bps=300,
     )
 
     if not quote_resp:
@@ -216,10 +221,7 @@ def get_jupiter_usd_price(
 
 
 def get_jupiter_quote(
-    input_mint: str,
-    output_mint: str,
-    amount_in: int,
-    max_slippage_bps: int = 300
+    input_mint: str, output_mint: str, amount_in: int, max_slippage_bps: int = 300
 ) -> dict:
     """
     Fetches a swap quote from Jupiter's /quote endpoint.
@@ -230,14 +232,14 @@ def get_jupiter_quote(
         "outputMint": output_mint,
         "amount": str(amount_in),
         "autoSlippage": "true",
-        "maxSlippage": str(max_slippage_bps)
+        "maxSlippage": str(max_slippage_bps),
     }
 
     response = requests.get(url, params=params)
 
-
     response.raise_for_status()
     return response.json()
+
 
 def get_jupiter_swap_tx(user_pubkey: str, quote_response: dict) -> str:
     """
@@ -259,11 +261,7 @@ def get_jupiter_swap_tx(user_pubkey: str, quote_response: dict) -> str:
     return swap_transaction_b64
 
 
-def sign_and_send_versioned_tx(
-    tx_b64: str,
-    signer: Keypair,
-    client: Client
-) -> str:
+def sign_and_send_versioned_tx(tx_b64: str, signer: Keypair, client: Client) -> str:
     """
     Deserializes a base64-encoded VersionedTransaction, signs it using the provided Keypair,
     and submits it to the Solana RPC.
@@ -273,9 +271,7 @@ def sign_and_send_versioned_tx(
     :param client:  A solana.rpc.api.Client instance for sending the transaction.
     :return:        The transaction signature (string) from the network.
     """
-    raw_transaction = VersionedTransaction.from_bytes(
-        base64.b64decode(tx_b64)
-    )
+    raw_transaction = VersionedTransaction.from_bytes(base64.b64decode(tx_b64))
 
     raw_message_bytes = message.to_bytes_versioned(raw_transaction.message)
     signature = signer.sign_message(raw_message_bytes)
@@ -285,10 +281,7 @@ def sign_and_send_versioned_tx(
     )
 
     opts = TxOpts(skip_preflight=False, preflight_commitment=Processed)
-    result = client.send_raw_transaction(
-        txn=bytes(signed_transaction),
-        opts=opts
-    )
+    result = client.send_raw_transaction(txn=bytes(signed_transaction), opts=opts)
 
     resp_dict = json.loads(result.to_json())
     tx_signature = resp_dict.get("result")
@@ -341,7 +334,6 @@ def swap_tokens(
 
     for attempt in range(1, max_retries + 1):
         try:
-
             quote_resp = get_jupiter_quote(
                 input_mint=input_mint,
                 output_mint=output_mint,
@@ -352,7 +344,9 @@ def swap_tokens(
                 raise ValueError("No quote from Jupiter")
 
             estimated_amount_out_str = quote_resp.get("outAmount")
-            estimated_amount_out = float(estimated_amount_out_str) / (10**output_mint_decimals)
+            float(estimated_amount_out_str) / (
+                10**output_mint_decimals
+            )
 
             # get the swap transaction
             swap_tx_b64 = get_jupiter_swap_tx(
@@ -362,9 +356,7 @@ def swap_tokens(
 
             # sign & send
             tx_sig = sign_and_send_versioned_tx(
-                tx_b64=swap_tx_b64,
-                signer=signer,
-                client=client
+                tx_b64=swap_tx_b64, signer=signer, client=client
             )
             logging.info(f"Swap attempt {attempt} - transaction submitted: {tx_sig}")
 
@@ -378,10 +370,12 @@ def swap_tokens(
                     tx_sig=tx_sig,
                     user_pubkey=str(signer.pubkey()),
                     output_mint=output_mint,
-                    output_decimals=output_mint_decimals
+                    output_decimals=output_mint_decimals,
                 )
                 if status == "finalized" and out_amount > 0:
-                    logging.info(f"Transaction {tx_sig} finalized with out_amount={out_amount}")
+                    logging.info(
+                        f"Transaction {tx_sig} finalized with out_amount={out_amount}"
+                    )
                     final_status = "finalized"
                     actual_out_amount = out_amount
                     block_time = get_tx_block_time(client, tx_sig)
@@ -405,10 +399,12 @@ def swap_tokens(
 
     if final_status != "finalized":
         if not bird_client or not wallet_address:
-            logging.error("No BirdEye client or wallet address. No fallback check.Failing swap.")
+            logging.error(
+                "No BirdEye client or wallet address. No fallback check.Failing swap."
+            )
             return (None, "notFound", 0.0, None)
 
-        time.sleep(15) # wait for birdeye to update
+        time.sleep(15)  # wait for birdeye to update
 
         current_balance = bird_client.get_token_balance(wallet_address, output_mint)
 
@@ -418,11 +414,12 @@ def swap_tokens(
             actual_out_amount = current_balance - old_balance
             block_time = None
 
-            logging.info(f"BirdEye fallback sees we have {current_balance} now (prev {old_balance}), so success.")
+            logging.info(
+                f"BirdEye fallback sees we have {current_balance} now (prev {old_balance}), so success."
+            )
         else:
             logging.warning("BirdEye also shows no new balance. Failing swap.")
             return (tx_sig, "notFound", 0.0, None)
-
 
     try:
         with holdings_lock:
@@ -472,9 +469,6 @@ if __name__ == "__main__":
     output_mint = "7u8nZijX8J7Psabzt813RApbv9YEWQTepMfm1zxmpump"
     output_decimals = 6
 
-    block_time = get_tx_block_time(
-        client=client,
-        tx_sig=test_tx
-    )
+    block_time = get_tx_block_time(client=client, tx_sig=test_tx)
 
     logging.info(f"Block time: {block_time}")

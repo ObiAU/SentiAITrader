@@ -1,20 +1,17 @@
 import asyncio
 import logging
-import os
 import random
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
-from typing import List, Set, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional
 
-from birdeye import BirdEyeClient, BirdEyeConfig, TokenSecurityInfo, TokenOverview, Trader
+from birdeye import BirdEyeClient, BirdEyeConfig
 
 from trader.config import Config
 from trader.core.dexscreener import fetch_dexscreener_info
 from trader.core.models import TokenMetadata
 from trader.core.top_traders import top_trader_addresses
-from trader.sniper.analysis import analyze_for_good_tokens
 
 # ---------------------------------------------------------
 # GLOBAL BirdEyeConfig (not a shared client)
@@ -24,19 +21,26 @@ global_config = BirdEyeConfig(api_key=Config.BIRDEYE_API_KEY)
 # Retained traders across iterations
 retained_traders: List[str] = []
 
-ignore_tokens = ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "So11111111111111111111111111111111111111112", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"] # USDC, SOL, USDT
+ignore_tokens = [
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "So11111111111111111111111111111111111111112",
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+]  # USDC, SOL, USDT
 
 
 # ---------------------------------------------------------
 # ASYNC transaction fetch
 # ---------------------------------------------------------
-async def fetch_transactions_async(trader: str, trade_opened_less_than_x_mins_ago: Optional[int] = None) -> tuple[set, int]:
+async def fetch_transactions_async(
+    trader: str, trade_opened_less_than_x_mins_ago: Optional[int] = None
+) -> tuple[set, int]:
     """
     Asynchronously fetch transactions for `trader` in a thread pool,
     returning (valid_addresses, valid_count).
     We create a new BirdEyeClient *inside* the function so each task
     has its own instance (helps avoid thread-safety / rate-limit issues).
     """
+
     def sync_fetch():
         try:
             local_client = BirdEyeClient(config=global_config)
@@ -59,32 +63,47 @@ async def fetch_transactions_async(trader: str, trade_opened_less_than_x_mins_ag
         tx_time = datetime.fromisoformat(tx.blockTime.replace("Z", "+00:00"))
 
         if trade_opened_less_than_x_mins_ago:
-            if datetime.now(timezone.utc) - tx_time <= timedelta(minutes=trade_opened_less_than_x_mins_ago):
+            if datetime.now(timezone.utc) - tx_time <= timedelta(
+                minutes=trade_opened_less_than_x_mins_ago
+            ):
                 if tx.balanceChange:
                     for change in tx.balanceChange:
-                        if change.get("amount", 0) > 0 and change.get("symbol") not in ["SOL", "USDC"] and change.get("address") not in ignore_tokens:
+                        if (
+                            change.get("amount", 0) > 0
+                            and change.get("symbol") not in ["SOL", "USDC"]
+                            and change.get("address") not in ignore_tokens
+                        ):
                             valid_addresses.add(change.get("address"))
-                            tx_details.append({
-                                "token_address": change.get("address"),
-                                "trader": trader,
-                                "tx_time": tx_time,
-                                "tx_hash": tx.txHash
-                            })
-        
+                            tx_details.append(
+                                {
+                                    "token_address": change.get("address"),
+                                    "trader": trader,
+                                    "tx_time": tx_time,
+                                    "tx_hash": tx.txHash,
+                                }
+                            )
+
         # for sentitrader to pickup hodling positions
         else:
             if tx.balanceChange:
                 for change in tx.balanceChange:
-                    if change.get("amount", 0) > 0 and change.get("symbol") not in ["SOL", "USDC"] and change.get("address") not in ignore_tokens:
+                    if (
+                        change.get("amount", 0) > 0
+                        and change.get("symbol") not in ["SOL", "USDC"]
+                        and change.get("address") not in ignore_tokens
+                    ):
                         valid_addresses.add(change.get("address"))
-                        tx_details.append({
-                            "token_address": change.get("address"),
-                            "trader": trader,
-                            "tx_time": tx_time,
-                            "tx_hash": tx.txHash
-                        })
+                        tx_details.append(
+                            {
+                                "token_address": change.get("address"),
+                                "trader": trader,
+                                "tx_time": tx_time,
+                                "tx_hash": tx.txHash,
+                            }
+                        )
 
     return valid_addresses, tx_details
+
 
 # ---------------------------------------------------------
 # REMAINING STEPS (security info, dex, overview, etc.)
@@ -106,20 +125,20 @@ def fetch_token_overview(address):
     """
     return address, config_client.fetch_token_overview(address)
 
-def fetch_balance_change_since_tx(
-        tx_sig: str,
-        user_pubkey: str,
-        output_mint: str,
-        output_decimals: int) -> float:
 
+def fetch_balance_change_since_tx(
+    tx_sig: str, user_pubkey: str, output_mint: str, output_decimals: int
+) -> float:
     """
     Fetch the balance change since a given transaction for a given user and token.
     """
 
-    return config_client.get_balance_change_since_tx(tx_sig, user_pubkey, output_mint, output_decimals)
+    return config_client.get_balance_change_since_tx(
+        tx_sig, user_pubkey, output_mint, output_decimals
+    )
+
 
 def fetch_token_overview_and_metadata(address):
-
     overview = config_client.fetch_token_overview(address)
     new_holders = config_client.fetch_new_holders_last_24h(address)
 
@@ -158,7 +177,11 @@ def fetch_token_overview_and_metadata(address):
 
             try:
                 if buy_volume_24h is not None and sell_volume_24h is not None:
-                    buy_sell_ratio_24h = buy_volume_24h / sell_volume_24h if sell_volume_24h != 0 else float('inf')
+                    buy_sell_ratio_24h = (
+                        buy_volume_24h / sell_volume_24h
+                        if sell_volume_24h != 0
+                        else float("inf")
+                    )
             except Exception as e:
                 logging.info(f"Error calculating buy_sell_ratio: {e}")
 
@@ -176,7 +199,9 @@ def fetch_token_overview_and_metadata(address):
 
             try:
                 if new_holders and holders:
-                    holders_increase_percent = 100 * (new_holders / holders) if holders != 0 else None
+                    holders_increase_percent = (
+                        100 * (new_holders / holders) if holders != 0 else None
+                    )
             except Exception as e:
                 logging.info(f"Error calculating holders_increase_percent: {e}")
 
@@ -189,7 +214,7 @@ def fetch_token_overview_and_metadata(address):
 
         except Exception as e:
             logging.info(f"Error processing overview data: {e}")
-    
+
     links = [str(twitter), str(telegram), str(discord), str(website)]
 
     return {
@@ -210,27 +235,24 @@ def fetch_token_overview_and_metadata(address):
         "description": desc,
         "logoURI": logo_URI,
         "urls": links,
-        "overview": overview
+        "overview": overview,
     }
 
 
-
-
 def scout_tokens(
-    *, # make others keyword_args
+    *,  # make others keyword_args
     mc_bounds: Tuple[float, float] = (50_000, 20_000_000),
     min_trades_in_30m: int = 30,
     max_drawdown_allowed: float = 70.0,
     top10_holder_percent_limit: float = 0.30,
     creation_max_days_ago: int = None,
-    creation_min_days_ago: int = 90,   # token must be created within these many days
-    creation_max_hours_ago: int = 2,   # token must NOT be created too recently, e.g. last 2 hours
-    trade_opened_less_than_x_mins_ago: int = 60, # trade must be opened within these many minutes
+    creation_min_days_ago: int = 90,  # token must be created within these many days
+    creation_max_hours_ago: int = 2,  # token must NOT be created too recently, e.g. last 2 hours
+    trade_opened_less_than_x_mins_ago: int = 60,  # trade must be opened within these many minutes
     random_sample_size: Optional[int] = None,
     retention_probability: float = 0.95,
-    bot_type: str = None
-    ):
-
+    bot_type: str = None,
+):
     global retained_traders
     start_time = datetime.now()
 
@@ -243,25 +265,31 @@ def scout_tokens(
             # Keep the previously retained traders + sample up to `random_sample_size - len(retained_traders)`
             active_traders = retained_traders + random.sample(
                 [t for t in top_trader_addresses if t not in retained_traders],
-                k=max(random_sample_size - len(retained_traders), 0)
+                k=max(random_sample_size - len(retained_traders), 0),
             )
         else:
             active_traders = random.sample(top_trader_addresses, random_sample_size)
-    
+
     else:
         active_traders = top_trader_addresses
+
     # --------------------------------------------------------
     # Step 2: ASYNC fetching of transactions
     # --------------------------------------------------------
     async def gather_transactions(traders: List[str]):
-        tasks = [fetch_transactions_async(trader, trade_opened_less_than_x_mins_ago) for trader in traders]
+        tasks = [
+            fetch_transactions_async(trader, trade_opened_less_than_x_mins_ago)
+            for trader in traders
+        ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         return results
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        transaction_results = loop.run_until_complete(gather_transactions(active_traders))
+        transaction_results = loop.run_until_complete(
+            gather_transactions(active_traders)
+        )
     finally:
         loop.close()
 
@@ -278,7 +306,7 @@ def scout_tokens(
         if isinstance(result, Exception):
             logging.error(f"Error fetching transactions for trader {trader}: {result}")
             continue
-        
+
         valid_addresses, tx_details = result
         if tx_details:
             token_transactions.extend(tx_details)
@@ -305,10 +333,16 @@ def scout_tokens(
             try:
                 dex_data = future.result()
 
-                if dex_data["has_website"] or dex_data["has_twitter"] or dex_data["has_telegram"]:
+                if (
+                    dex_data["has_website"]
+                    or dex_data["has_twitter"]
+                    or dex_data["has_telegram"]
+                ):
                     social_tokens.append(address)
                 else:
-                    logging.info(f"Skipped token {address} (no website/Twitter/Telegram). Found: website={dex_data['has_website']}, twitter={dex_data['has_twitter']}, telegram={dex_data['has_telegram']}")
+                    logging.info(
+                        f"Skipped token {address} (no website/Twitter/Telegram). Found: website={dex_data['has_website']}, twitter={dex_data['has_twitter']}, telegram={dex_data['has_telegram']}"
+                    )
                     pass
             except Exception as e:
                 logging.error(f"Error checking DexScreener for token {address}: {e}")
@@ -332,27 +366,41 @@ def scout_tokens(
                     continue
 
                     # filter on top10 holder % limit
-                if (not security_info.top10HolderPercent or
-                        security_info.top10HolderPercent > top10_holder_percent_limit):
+                if (
+                    not security_info.top10HolderPercent
+                    or security_info.top10HolderPercent > top10_holder_percent_limit
+                ):
                     continue
 
                 creation_time = security_info.creationTime
 
                 if creation_time:
-                    creation_datetime = datetime.fromtimestamp(creation_time, tz=timezone.utc)
+                    creation_datetime = datetime.fromtimestamp(
+                        creation_time, tz=timezone.utc
+                    )
 
                     logging.info(f"Token {address} creation time: {creation_datetime}")
 
                     current_time = datetime.now(timezone.utc)
 
-                    min_allowed_creation = current_time - timedelta(days=creation_min_days_ago)
-                    max_allowed_creation = current_time - timedelta(hours=creation_max_hours_ago)
+                    min_allowed_creation = current_time - timedelta(
+                        days=creation_min_days_ago
+                    )
+                    max_allowed_creation = current_time - timedelta(
+                        hours=creation_max_hours_ago
+                    )
 
                     if creation_max_days_ago:
-                        max_allowed_creation = current_time - timedelta(days=creation_max_days_ago)
+                        max_allowed_creation = current_time - timedelta(
+                            days=creation_max_days_ago
+                        )
 
                     # Must be within [current_time - X days, current_time - Y hours]
-                    if not (min_allowed_creation <= creation_datetime <= max_allowed_creation):
+                    if not (
+                        min_allowed_creation
+                        <= creation_datetime
+                        <= max_allowed_creation
+                    ):
                         logging.info(f"Skipped token {address} due to creation time.")
                         continue
                     logging.info(f"Token {address} passed creation time check.")
@@ -403,7 +451,7 @@ def scout_tokens(
                     continue
                 if not (overview.mc >= min_mc and overview.realMc >= min_mc):
                     continue
-                if (overview.mc > max_mc and overview.realMc > max_mc):
+                if overview.mc > max_mc and overview.realMc > max_mc:
                     continue
 
                 # Must have at least `min_trades_in_30m` trades in the last 30m
@@ -441,15 +489,19 @@ def scout_tokens(
                 tx_sig=tx_hash,
                 user_pubkey=trader,
                 output_mint=address,
-                output_decimals=overview.decimals
+                output_decimals=overview.decimals,
             )
 
             if status != "finalized":
-                logging.error(f"Error fetching balance change for token {address}: {status}")
+                logging.error(
+                    f"Error fetching balance change for token {address}: {status}"
+                )
                 continue
 
             if balance_change < 0:
-                logging.info(f"Trader {trader} sold some of token {address} since buying. Skipping.")
+                logging.info(
+                    f"Trader {trader} sold some of token {address} since buying. Skipping."
+                )
                 continue
 
             # If still holding, prepare the metadata object
@@ -461,7 +513,7 @@ def scout_tokens(
                 trader=tx["trader"],
                 tx_time=tx["tx_time"],
                 tx_hash=tx["tx_hash"],
-                creation_time=security_info_map[address].creationTime
+                creation_time=security_info_map[address].creationTime,
             )
 
             final_preanalysis_tokens.append(token_metadata)
@@ -469,22 +521,29 @@ def scout_tokens(
         except Exception as e:
             logging.error(f"Error fetching balance change for token {address}: {e}")
 
-    logging.info(f"Tokens passing all pre-analysis filters: {len(final_preanalysis_tokens)}")
+    logging.info(
+        f"Tokens passing all pre-analysis filters: {len(final_preanalysis_tokens)}"
+    )
 
     final_analyzed_tokens = final_preanalysis_tokens
     # --------------------------------------------------------
     # Print final results - NB You must run the analysis in the bot code loop to determine a good entry
     # --------------------------------------------------------
-    logging.info(f"Final tokens after all filters & analysis: {len(final_analyzed_tokens)}")
+    logging.info(
+        f"Final tokens after all filters & analysis: {len(final_analyzed_tokens)}"
+    )
 
     logging.info(f"Total time taken: {datetime.now() - start_time}")
 
     return final_analyzed_tokens
+
 
 # ---------------------------------------------------------
 # MAIN ENTRY POINT
 # ---------------------------------------------------------
 if __name__ == "__main__":
     # scout_tokens()
-    res = fetch_token_overview_and_metadata("ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY") ## moodeng addr
+    res = fetch_token_overview_and_metadata(
+        "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY"
+    )  ## moodeng addr
     logging.info(f"Result: {res}")

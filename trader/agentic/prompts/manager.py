@@ -1,6 +1,6 @@
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError, meta
-from typing import List, Union, Literal
+
 
 class PromptHandler:
     _env = None
@@ -15,7 +15,6 @@ class PromptHandler:
             )
         return cls._env
 
-
     @staticmethod
     def get_prompt(template, **kwargs):
         env = PromptHandler._get_env()
@@ -25,7 +24,6 @@ class PromptHandler:
             return env.from_string(template_content).render(**kwargs)
         except TemplateError as e:
             raise ValueError(f"Error rendering template: {str(e)}")
-
 
     @staticmethod
     def get_template_info(template):
