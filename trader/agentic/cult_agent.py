@@ -1,8 +1,6 @@
 import logging
-import os
-import sys
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import List, Dict
 
 import requests
 import requests.auth
@@ -16,9 +14,9 @@ from trader.agentic.src.reddit import RedditClient
 from trader.agentic.src.subreddit_scout import SubredditScout
 
 
-
 class CommentData(BaseModel):
     """Represents a single comment parsed from Reddit JSON."""
+
     comment_id: str
     parent_id: str
     body: str
@@ -31,13 +29,14 @@ class CommentData(BaseModel):
 
 class ThreadBlock(BaseModel):
     """Represents a single text block combining a top-level comment + all its children."""
+
     text_block: str
 
 
 class CultAgent(RedditClient):
-    def __init__(self,
-                 openai_client: OpenAI = None,
-                 prompt_handler: PromptHandler = None):
+    def __init__(
+        self, openai_client: OpenAI = None, prompt_handler: PromptHandler = None
+    ):
         super().__init__()
         # rclient = RedditClient()
         self.openai_client = openai_client or OpenAI()
@@ -48,22 +47,30 @@ class CultAgent(RedditClient):
         self.opensearch_client = CritiqueSearch()
 
         self.headers = {
-                "Authorization": f"bearer {self.token}",
-                "User-Agent": "MyCryptoScraperBot/1.0 by /u/Theredeemer08"
-            }
+            "Authorization": f"bearer {self.token}",
+            "User-Agent": "MyCryptoScraperBot/1.0 by /u/Theredeemer08",
+        }
 
-
-    def run_cult_agent(self, ticker: str, token_name: str, full_text: str, subreddit: str, naive: bool = False,
-                                average_hold_time: int = "", xholder_distr: int = "", holders: str = "", log: bool = False):
-
+    def run_cult_agent(
+        self,
+        ticker: str,
+        token_name: str,
+        full_text: str,
+        subreddit: str,
+        naive: bool = False,
+        average_hold_time: int = "",
+        xholder_distr: int = "",
+        holders: str = "",
+        log: bool = False,
+    ):
         system_message = self.prompt_handler.get_prompt(
             template="cult_factor",
             ticker=ticker,
-            token_name = token_name,
+            token_name=token_name,
             posts=full_text,
-            subreddit = subreddit,
-            average_hold_time = average_hold_time,
-            num_holders = holders
+            subreddit=subreddit,
+            average_hold_time=average_hold_time,
+            num_holders=holders,
         )
 
         if naive:
@@ -82,72 +89,69 @@ class CultAgent(RedditClient):
                     ),
                 },
             ],
-            response_format=CultinessResult
+            response_format=CultinessResult,
         )
 
-        if hasattr(response.choices[0].message, 'parsed'):
+        if hasattr(response.choices[0].message, "parsed"):
             cultiness_result = response.choices[0].message.parsed
         else:
-            # fallback 
+            # fallback
             content = response.choices[0].message.content
             raise ValueError(f"Could not parse cultiness response: {content}")
 
         if log:
             # self._log_cultiness(ticker, cultiness_result) # freeze logging
             pass
-        
+
         return cultiness_result
-    
 
-    def search_subreddit_post(self, subreddit: str, post_id: str, sort: str = "top", limit: int = 10) -> dict:
-
-        params = {
-            "sort": sort,
-            "limit": limit
-        }
+    def search_subreddit_post(
+        self, subreddit: str, post_id: str, sort: str = "top", limit: int = 10
+    ) -> dict:
+        params = {"sort": sort, "limit": limit}
         url = f"{self.base_url}/r/{subreddit}/comments/{post_id}"
 
         resp = requests.get(url, headers=self.headers, params=params)
         resp.raise_for_status()
         return resp.json()
 
-  
     def parse_comment_tree(self, comment_listing: dict) -> List[CommentData]:
         """
         Recursively parse the comment data
         """
         parsed_comments: List[CommentData] = []
 
-        children = comment_listing.get('data', {}).get('children', [])
+        children = comment_listing.get("data", {}).get("children", [])
         for child in children:
-            kind = child.get('kind')
-            if kind == 't1':
-                data = child['data']
+            kind = child.get("kind")
+            if kind == "t1":
+                data = child["data"]
                 c = CommentData(
-                    comment_id=data.get('id', ''),
-                    parent_id=data.get('parent_id', ''),
-                    body=data.get('body', ''),
-                    score=data.get('score', 0),
-                    downs=data.get('downs', 0),
-                    author=data.get('author', ''),
-                    depth=data.get('depth', 0)
+                    comment_id=data.get("id", ""),
+                    parent_id=data.get("parent_id", ""),
+                    body=data.get("body", ""),
+                    score=data.get("score", 0),
+                    downs=data.get("downs", 0),
+                    author=data.get("author", ""),
+                    depth=data.get("depth", 0),
                 )
                 parsed_comments.append(c)
 
                 # Recurse into replies
-                replies = data.get('replies')
+                replies = data.get("replies")
                 if replies and isinstance(replies, dict):
                     nested_comments = self.parse_comment_tree(replies)
                     parsed_comments.extend(nested_comments)
-            elif kind == 'more':
+            elif kind == "more":
                 pass
             else:
                 pass
 
         return parsed_comments
 
-   
-    def build_comment_hierarchy(self, parsed_comments: List[CommentData], post_id: str) -> List[CommentData]:
+    def build_comment_hierarchy(
+        self, parsed_comments: List[CommentData], post_id: str
+    ) -> List[CommentData]:
         """
         build comment hierarchy
         """
@@ -160,7 +164,7 @@ class CultAgent(RedditClient):
         top_level_comments: List[CommentData] = []
 
         for c in parsed_comments:
-            parent_id = c.parent_id 
+            parent_id = c.parent_id
 
             if parent_id == f"t3_{post_id}":
                 top_level_comments.append(c)
@@ -172,7 +176,6 @@ class CultAgent(RedditClient):
                         parent.children.append(c)
 
         return top_level_comments
-
 
     def build_thread_block(self, comment: CommentData, indent: int = 0) -> str:
         """
@@ -192,7 +195,6 @@ class CultAgent(RedditClient):
         else:
             return line
 
-
     def create_thread_block_model(self, top_comment: CommentData) -> ThreadBlock:
         """
         Wraps string with 'COMMENT THREAD'
@@ -201,70 +203,70 @@ class CultAgent(RedditClient):
         text_block = f"COMMENT THREAD:\n\n{block_str}\n"
         return ThreadBlock(text_block=text_block)
 
-    def analyze_posts(self, 
-                      subreddit: str,
-                      query: str = "",
-                      sort: str = "top",
-                      post_limit: int = 3,
-                      comment_limit: int = 10,
-                      ticker: str = "",
-                      token_name: str = "",
-                      holders: str = "") -> List[CultinessResult]:
-        
+    def analyze_posts(
+        self,
+        subreddit: str,
+        query: str = "",
+        sort: str = "top",
+        post_limit: int = 3,
+        comment_limit: int = 10,
+        ticker: str = "",
+        token_name: str = "",
+        holders: str = "",
+    ) -> List[CultinessResult]:
         search_json = self.search_subreddit(
-            subreddit=subreddit,
-            query=query,
-            sort=sort,
-            limit=post_limit
+            subreddit=subreddit, query=query, sort=sort, limit=post_limit
         )
 
-        posts_data = search_json['data'].get('children', [])
+        posts_data = search_json["data"].get("children", [])
         if not posts_data:
             logging.warning("No posts found.")
             return []
 
-        results: List[CultinessResult] = []
 
         all_posts = []
 
         for idx, post in enumerate(posts_data):
-            post_info = post.get('data', {})
-            post_id = post_info.get('id')
+            post_info = post.get("data", {})
+            post_id = post_info.get("id")
             if not post_id:
                 continue
 
-            logging.info(f"[AnalyzePosts] -> Processing post #{idx+1} => ID={post_id}")
+            logging.info(
+                f"[AnalyzePosts] -> Processing post #{idx + 1} => ID={post_id}"
+            )
 
             post_title = post_info.get("title", "")
-            post_score = post_info.get("score", "")
+            post_info.get("score", "")
             post_body = post_info.get("selftext", "")
-            truncated_body = (post_body[:100] + "...") if len(post_body) > 100 else post_body
+            truncated_body = (
+                (post_body[:100] + "...") if len(post_body) > 100 else post_body
+            )
 
             json_data = self.search_subreddit_post(
-                subreddit=subreddit,
-                post_id=post_id,
-                sort=sort,
-                limit=comment_limit
+                subreddit=subreddit, post_id=post_id, sort=sort, limit=comment_limit
             )
 
             if len(json_data) < 2:
                 logging.warning("No comments found for this post.")
                 post_section = (
-                    f"--- Post #{idx+1} / ID={post_id} ---\n"
+                    f"--- Post #{idx + 1} / ID={post_id} ---\n"
                     f"Title: {post_title}\n"
                     f"Body: {truncated_body}\n\n"
                     "COMMENTS: None\n"
                 )
                 all_posts.append(post_section)
                 continue
-            
+
             try:
                 comment_listing = json_data[1]
 
                 parsed_comments = self.parse_comment_tree(comment_listing)
 
-                top_level_comments = self.build_comment_hierarchy(parsed_comments, post_id)
-            
+                top_level_comments = self.build_comment_hierarchy(
+                    parsed_comments, post_id
+                )
+
             except Exception as e:
                 logging.error(f"Failed to extract post comments. Error: {e}")
                 return
@@ -280,7 +282,7 @@ class CultAgent(RedditClient):
                 comments_text_str = "\n\n".join(comments_text)
 
             post_section = (
-                f"--- Post #{idx+1} / ID={post_id} ---\n"
+                f"--- Post #{idx + 1} / ID={post_id} ---\n"
                 f"Title: {post_title}\n"
                 f"Body: {truncated_body}\n\n"
                 f"COMMENTS:\n{comments_text_str}\n"
@@ -288,7 +290,9 @@ class CultAgent(RedditClient):
 
             all_posts.append(post_section)
 
-            logging.debug(f"Combined comments found for post {post_id}: {comments_text_str[:200]}...")
+            logging.debug(
+                f"Combined comments found for post {post_id}: {comments_text_str[:200]}..."
+            )
 
         combined_text = "\n\n".join(all_posts)
 
@@ -299,54 +303,54 @@ class CultAgent(RedditClient):
             ticker=ticker,
             token_name=token_name,
             full_text=combined_text,
-            holders = holders
+            holders=holders,
         )
 
         return cultiness_result
-    
+
     def cult_search(self, ticker: str, token_name: str, average_hold_time: str = ""):
-
         search_prompt = self.prompt_handler.get_prompt(
-                                                        template="cult_search",
-                                                        ticker=ticker,
-                                                        token_name=token_name, 
-                                                        current_date = datetime.now(),
-                                                        average_hold_time = average_hold_time
-                                                        )
-        
-        search_results = self.opensearch_client.search(prompt=search_prompt,
-                                                       source_blacklist=[],
-                                                       output_format=False)
-        
-        return search_results
-    
-    def search_cultism(self, ticker, token_name, num_holders, hold_time = ""):
+            template="cult_search",
+            ticker=ticker,
+            token_name=token_name,
+            current_date=datetime.now(),
+            average_hold_time=average_hold_time,
+        )
 
+        search_results = self.opensearch_client.search(
+            prompt=search_prompt, source_blacklist=[], output_format=False
+        )
+
+        return search_results
+
+    def search_cultism(self, ticker, token_name, num_holders, hold_time=""):
         try:
             subreddit_name = scout.find_subreddit_ai(ticker, token_name)
             post_limit = 2
             comment_limit = 5
 
             verdict = agent.analyze_posts(
-                        subreddit=subreddit_name,
-                        query=ticker,
-                        sort="hot",
-                        post_limit=post_limit,
-                        comment_limit=comment_limit,
-                        ticker=ticker,
-                        token_name=token_name,
-                        holders = num_holders
-                    )  
-            
+                subreddit=subreddit_name,
+                query=ticker,
+                sort="hot",
+                post_limit=post_limit,
+                comment_limit=comment_limit,
+                ticker=ticker,
+                token_name=token_name,
+                holders=num_holders,
+            )
+
         except Exception as e:
-            logging.info(f"Resorting to backup deepsearch. Direct reddit parsing failed with error: {e}")
+            logging.info(
+                f"Resorting to backup deepsearch. Direct reddit parsing failed with error: {e}"
+            )
             search_results = self.cult_search(ticker, token_name, hold_time)
 
-            verdict = self.run_cult_agent(ticker, token_name, full_text=search_results, naive=True)
+            verdict = self.run_cult_agent(
+                ticker, token_name, full_text=search_results, naive=True
+            )
 
-        
         return verdict
-
 
 
 if __name__ == "__main__":
@@ -371,7 +375,6 @@ if __name__ == "__main__":
     token_name = "Moo Deng"
     num_holders = "50000"
 
-
     # subreddit_name = "gigachadmemecoin"
     subreddit_name = scout.find_subreddit_ai(ticker, token_name)
     logging.info(f"Found subreddit: {subreddit_name}")
@@ -387,7 +390,7 @@ if __name__ == "__main__":
         comment_limit=my_comment_limit,
         ticker=ticker,
         token_name=token_name,
-        holders = num_holders
+        holders=num_holders,
     )
     r = results
     # for i, r in enumerate(results, start=1):

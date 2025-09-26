@@ -20,18 +20,23 @@ POSITION_HISTORY_SHEET_NAME = "Position History"
 TRADES_HISTORY_SHEET_NAME = "Trade History"
 
 logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
 class GoogleCloudClient:
     """
     Base class for Google Cloud clients, handles authentication.
     """
+
     def __init__(
-                self,
-                scopes: List[str] = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
-                local: bool = True
-                ) -> None:
+        self,
+        scopes: List[str] = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ],
+        local: bool = True,
+    ) -> None:
         """
         Init gcloud client with scopes
         """
@@ -40,21 +45,24 @@ class GoogleCloudClient:
 
         if not local:
             self.creds = self.authenticate_session_cloud()
-        
+
         else:
             self.creds = self.authenticate_session_local()
-        
+
     def authenticate_session_local(self) -> Optional[Credentials]:
         creds = None
         if os.path.exists(os.path.join(SECRETS_DIR, "token.json")):
-            creds = Credentials.from_authorized_user_file(os.path.join(SECRETS_DIR, "token.json"), self.scopes)
+            creds = Credentials.from_authorized_user_file(
+                os.path.join(SECRETS_DIR, "token.json"), self.scopes
+            )
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    os.path.join(SECRETS_DIR, "cloud_trader_credentials.json"), self.scopes
+                    os.path.join(SECRETS_DIR, "cloud_trader_credentials.json"),
+                    self.scopes,
                 )
                 creds = flow.run_local_server(port=0)
                 with open(os.path.join(SECRETS_DIR, "token.json"), "w") as token:
@@ -66,12 +74,12 @@ class GoogleCloudClient:
         # for local testing
         creds = None
         with open(os.path.join(SECRETS_DIR, "gtoken.txt"), "r") as f:
-                self.token = f.read()
+            self.token = f.read()
         with open(os.path.join(SECRETS_DIR, "grefresh_token.txt"), "r") as f:
-                # self.refresh_token = f.read()
-                self.refresh_token = None 
+            # self.refresh_token = f.read()
+            self.refresh_token = None
         with open(os.path.join(SECRETS_DIR, "gsecret.txt"), "r") as f:
-                self.client_secret = f.read()
+            self.client_secret = f.read()
 
         # keep if want to automate -- probs not necessary as can just run it once a day via local script
         # keeping separate from config as will be its own cron
@@ -92,31 +100,38 @@ class GoogleCloudClient:
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
                 "client_secret": self.client_secret,
-                "redirect_uris": ["http://localhost"]
+                "redirect_uris": ["http://localhost"],
             },
             "token": self.token,
             "refresh_token": self.refresh_token or "",
             "token_uri": "https://oauth2.googleapis.com/token",
             "client_id": Config.GCLOUD_CLIENT_ID,
             "client_secret": self.client_secret,
-            "scopes": ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
+            "scopes": [
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ],
             "universe_domain": "googleapis.com",
             "account": "",
-            "expiry": Config.GCLOUD_TOKEN_EXPIRY
+            "expiry": Config.GCLOUD_TOKEN_EXPIRY,
         }
 
         try:
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_file:
-
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".json"
+            ) as temp_file:
                 json.dump(user_info, temp_file)
                 temp_file.flush()
 
-                creds = Credentials.from_authorized_user_file(temp_file.name, self.scopes)
+                creds = Credentials.from_authorized_user_file(
+                    temp_file.name, self.scopes
+                )
             return creds
 
         except Exception as e:
             logging.error(f"Error during authentication: {e}")
             return None
+
 
 class GoogleSheetsClient(GoogleCloudClient):
     """
@@ -124,9 +139,11 @@ class GoogleSheetsClient(GoogleCloudClient):
     """
 
     def __init__(self, scopes: Optional[List[str]] = None) -> None:
-
         if scopes is None:
-            scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            scopes = [
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ]
         super().__init__(scopes)
 
     def create_gsheet(
@@ -135,7 +152,6 @@ class GoogleSheetsClient(GoogleCloudClient):
         content: Optional[List[List[Any]]] = None,
         sheet_name: str = "Sheet1",
     ) -> str:
-
         try:
             service = build("sheets", "v4", credentials=self.creds)
 
@@ -145,7 +161,6 @@ class GoogleSheetsClient(GoogleCloudClient):
             }
 
             if content:
-
                 sheet = {
                     "properties": {"title": sheet_name},
                     "data": [
@@ -191,7 +206,6 @@ class GoogleSheetsClient(GoogleCloudClient):
         except HttpError as error:
             logging.error(f"An error occurred: {error}")
             raise error
-        
 
     def update_sheet(
         self, spreadsheet_id: str, range_name: str, values: List[List[Any]]
@@ -218,14 +232,10 @@ class GoogleSheetsClient(GoogleCloudClient):
             logging.error(f"There was an HTTP error: {err}")
             raise err
 
-    def append_row(
-        self, spreadsheet_id: str, sheet_name: str, row: List[Any]
-    ) -> None:
+    def append_row(self, spreadsheet_id: str, sheet_name: str, row: List[Any]) -> None:
         try:
             service = build("sheets", "v4", credentials=self.creds)
-            body = {
-                "values": [row]
-            }
+            body = {"values": [row]}
             result = (
                 service.spreadsheets()
                 .values()
@@ -243,10 +253,7 @@ class GoogleSheetsClient(GoogleCloudClient):
             logging.error(f"There was an HTTP error: {err}")
             raise err
 
-    def get_from_sheet(
-        self, spreadsheet_id: str, range_name: str
-    ) -> List[List[Any]]:
-
+    def get_from_sheet(self, spreadsheet_id: str, range_name: str) -> List[List[Any]]:
         try:
             service = build("sheets", "v4", credentials=self.creds)
             result = (
@@ -262,7 +269,7 @@ class GoogleSheetsClient(GoogleCloudClient):
         except HttpError as err:
             logging.error(f"There was an HTTP error: {err}")
             raise err
-        
+
     def update_trades_history_sheet(self, spreadsheet_id: str, sheet_name: str) -> None:
         """
         qol update trades history sheet -- identifier is trade_id
@@ -294,7 +301,11 @@ class GoogleSheetsClient(GoogleCloudClient):
                 logging.error("trade_id column not found in existing sheet header.")
                 return
             # Convert all recorded trade IDs to strings
-            existing_ids = {str(row[trade_id_index]) for row in sheet_data[1:] if len(row) > trade_id_index}
+            existing_ids = {
+                str(row[trade_id_index])
+                for row in sheet_data[1:]
+                if len(row) > trade_id_index
+            }
 
         for record in trades_records:
             data = record.get("result", record)
@@ -305,12 +316,13 @@ class GoogleSheetsClient(GoogleCloudClient):
             if str(trade_id) in existing_ids:
                 logging.info(f"Trade id {trade_id} already recorded. Skipping.")
                 continue
- 
+
             row = [data.get(col, "") for col in header]
             self.append_row(spreadsheet_id, sheet_name, row)
 
-
-    def update_positions_history_sheet(self, spreadsheet_id: str, sheet_name: str) -> None:
+    def update_positions_history_sheet(
+        self, spreadsheet_id: str, sheet_name: str
+    ) -> None:
         """
         qol update positions history sheet -- identifier is position_id
         """
@@ -340,7 +352,11 @@ class GoogleSheetsClient(GoogleCloudClient):
             except ValueError:
                 logging.error("position_id column not found in existing sheet header.")
                 return
-            existing_ids = {str(row[position_id_index]) for row in sheet_data[1:] if len(row) > position_id_index}
+            existing_ids = {
+                str(row[position_id_index])
+                for row in sheet_data[1:]
+                if len(row) > position_id_index
+            }
 
         for record in positions_records:
             data = record.get("result", record)
@@ -357,8 +373,8 @@ class GoogleSheetsClient(GoogleCloudClient):
 
 gsheet = GoogleSheetsClient()
 
-def main():
 
+def main():
     logging.info("Recording latest trades and positions to Sheets..")
 
     try:
@@ -367,12 +383,12 @@ def main():
         logging.error(f"Error updating trades history sheet: {e}")
 
     try:
-        gsheet.update_positions_history_sheet(SPREADSHEET_ID, POSITION_HISTORY_SHEET_NAME)
+        gsheet.update_positions_history_sheet(
+            SPREADSHEET_ID, POSITION_HISTORY_SHEET_NAME
+        )
     except Exception as e:
         logging.error(f"Error updating positions history sheet: {e}")
 
 
-
 if __name__ == "__main__":
     main()
-    

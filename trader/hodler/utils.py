@@ -1,18 +1,16 @@
 import json
 import logging
 import os
-import sys
 from datetime import datetime, timedelta
 from typing import Tuple
 
-import numpy as np
-import pandas as pd
 
 ## passing from wallet / cache to sentiment agent. Need to pass both ticker symbol and token name.
 # e.g. reddit search will search both ticker and token name. Also can attempt subreddit search of token name (see what comes up)
 
 CACHE_FILE = "hodl_checks.json"
 HODLERS_FILE = "big_hodlers.json"
+
 
 def detailed_sell_strategy(
     sentiment: float,
@@ -60,13 +58,15 @@ def detailed_sell_strategy(
         (5.0, 1.00),  # At 5×, sell 100%
     ]
 
-    for (threshold, target_fraction) in partial_sells_table:
+    for threshold, target_fraction in partial_sells_table:
         if current_factor >= threshold and partial_sold < target_fraction:
             price_based_fraction += target_fraction - partial_sold
             reason += f" | Price threshold {threshold}× hit"
 
     # === Trailing stop logic ===
-    trailing_stop_factor = 0.5 if sentiment >= 0.6 else 0.3  # Adjust stop-loss based on sentiment
+    trailing_stop_factor = (
+        0.5 if sentiment >= 0.6 else 0.3
+    )  # Adjust stop-loss based on sentiment
     stop_price = max_price * trailing_stop_factor
 
     if current_price < stop_price:
@@ -89,8 +89,9 @@ def get_top_tokens_for_wallet(wallet_address):
     # Dummy placeholder
     return [
         {"address": f"{wallet_address}-token1", "symbol": "TKN1"},
-        {"address": f"{wallet_address}-token2", "symbol": "TKN2"}
+        {"address": f"{wallet_address}-token2", "symbol": "TKN2"},
     ]
+
 
 # def murad_strategy(token_address)
 
@@ -121,14 +122,13 @@ def scout_tokens(max_cache_age_days=15) -> list:
     else:
         logging.info("No cache file found. Generating new cache.")
 
-
     if not os.path.exists(HODLERS_FILE):
         logging.error(f"Could not find file {HODLERS_FILE}.")
         return []
 
     with open(HODLERS_FILE, "r") as f:
         try:
-            hodlers_data = json.load(f) # wallet idx, wallet address
+            hodlers_data = json.load(f)  # wallet idx, wallet address
             wallet_addresses = list(hodlers_data.values())
 
         except json.JSONDecodeError as e:
@@ -143,13 +143,10 @@ def scout_tokens(max_cache_age_days=15) -> list:
     # de-duplicate
     unique_tokens = {}
     for token in new_token_list:
-        unique_tokens[token['address']] = token
+        unique_tokens[token["address"]] = token
     new_token_list = list(unique_tokens.values())
 
-    cache_data = {
-        "scout_time": datetime.now().isoformat(),
-        "tokens": new_token_list
-    }
+    cache_data = {"scout_time": datetime.now().isoformat(), "tokens": new_token_list}
     with open(CACHE_FILE, "w") as f:
         json.dump(cache_data, f, indent=2)
 

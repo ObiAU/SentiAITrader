@@ -5,25 +5,38 @@ from pydantic import BaseModel, Field
 
 from trader.config import Config
 
+
 class ServerInput(BaseModel):
     guild_id: int = Field(..., description="The ID of the server (guild)")
-    channels: Optional[List[int]] = Field(None, description="List of channel IDs to fetch messages from. If None, fetch from all accessible channels.")
+    channels: Optional[List[int]] = Field(
+        None,
+        description="List of channel IDs to fetch messages from. If None, fetch from all accessible channels.",
+    )
 
 
 class MessageOutput(BaseModel):
     author: str = Field(..., description="The author of the message")
     content: str = Field(..., description="The content of the message")
     timestamp: str = Field(..., description="The time the message was sent")
-    channel_id: int = Field(..., description="The ID of the channel where the message was sent")
-    guild_id: int = Field(..., description="The ID of the server (guild) where the message was sent")
+    channel_id: int = Field(
+        ..., description="The ID of the channel where the message was sent"
+    )
+    guild_id: int = Field(
+        ..., description="The ID of the server (guild) where the message was sent"
+    )
 
 
 class DiscordClient(discord.Client):
-    def __init__(self, intents: discord.Intents, servers_to_scrape: List[ServerInput], *args, **kwargs):
+    def __init__(
+        self,
+        intents: discord.Intents,
+        servers_to_scrape: List[ServerInput],
+        *args,
+        **kwargs,
+    ):
         super().__init__(intents=intents, *args, **kwargs)
         self.token = Config.DISCORD_BOT_TOKEN
         self.servers_to_scrape = servers_to_scrape
-
 
     async def on_ready(self):
         logging.info(f"Logged in as {self.user} (ID: {self.user.id})")
@@ -37,15 +50,23 @@ class DiscordClient(discord.Client):
                 continue
 
             logging.info(f"Accessing guild: {guild.name} ({guild.id})")
-            channels = guild.text_channels if server.channels is None else [
-                guild.get_channel(ch_id) for ch_id in server.channels if guild.get_channel(ch_id)
-            ]
+            channels = (
+                guild.text_channels
+                if server.channels is None
+                else [
+                    guild.get_channel(ch_id)
+                    for ch_id in server.channels
+                    if guild.get_channel(ch_id)
+                ]
+            )
 
             for channel in channels:
                 if channel is None:
                     continue
 
-                logging.info(f"Fetching messages from channel: {channel.name} ({channel.id})")
+                logging.info(
+                    f"Fetching messages from channel: {channel.name} ({channel.id})"
+                )
                 messages = await self.fetch_messages(channel, guild.id)
                 all_messages.extend(messages)
 
@@ -54,8 +75,9 @@ class DiscordClient(discord.Client):
 
         await self.close()
 
-
-    async def fetch_messages(self, channel: discord.TextChannel, guild_id: int) -> List[MessageOutput]:
+    async def fetch_messages(
+        self, channel: discord.TextChannel, guild_id: int
+    ) -> List[MessageOutput]:
         fetched_messages = []
         try:
             async for message in channel.history(limit=100):
@@ -68,19 +90,26 @@ class DiscordClient(discord.Client):
                 )
                 fetched_messages.append(msg_output)
         except discord.Forbidden:
-            logging.warning(f"Permission denied to read message history in {channel.name} ({channel.id}).")
+            logging.warning(
+                f"Permission denied to read message history in {channel.name} ({channel.id})."
+            )
         except discord.HTTPException as e:
-            logging.error(f"Failed to fetch messages from {channel.name} ({channel.id}): {e}")
+            logging.error(
+                f"Failed to fetch messages from {channel.name} ({channel.id}): {e}"
+            )
 
         return fetched_messages
 
     def pretty_print_messages(self, messages: List[MessageOutput]):
         for msg in messages:
-            logging.debug(f"[{msg.timestamp}] {msg.author} in channel {msg.channel_id} (server {msg.guild_id}): {msg.content}")
+            logging.debug(
+                f"[{msg.timestamp}] {msg.author} in channel {msg.channel_id} (server {msg.guild_id}): {msg.content}"
+            )
+
 
 if __name__ == "__main__":
-    TURBO_SERVER_ID = '1102800896393498685'
-    CHANNEL_ID = '1102800896980680816'
+    TURBO_SERVER_ID = "1102800896393498685"
+    CHANNEL_ID = "1102800896980680816"
     # intents = discord.Intents.default()
     # intents.message_content = True
 
@@ -93,22 +122,21 @@ if __name__ == "__main__":
     # client.run(client.token)
 
     import discord
-    import asyncio
 
     # Replace 'YOUR_BOT_TOKEN' with your bot token
-    BOT_TOKEN = 'YOUR_BOT_TOKEN'
+    BOT_TOKEN = "YOUR_BOT_TOKEN"
 
     # Replace 'CHANNEL_ID' with the ID of the channel you want to scrape
     CHANNEL_ID = 123456789012345678  # Replace with your channel's ID
 
     class MyClient(discord.Client):
         async def on_ready(self):
-            logging.info(f'Logged in as {self.user}')
+            logging.info(f"Logged in as {self.user}")
             channel = self.get_channel(CHANNEL_ID)
             if channel:
                 messages = await channel.history(limit=10).flatten()
                 for message in messages:
-                    logging.info(f'{message.author}: {message.content}')
+                    logging.info(f"{message.author}: {message.content}")
             else:
                 logging.error("Channel not found. Check your CHANNEL_ID.")
             await self.close()
@@ -116,4 +144,3 @@ if __name__ == "__main__":
     # Initialize and run the bot
     client = MyClient(intents=discord.Intents.default())
     client.run(BOT_TOKEN)
-

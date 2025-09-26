@@ -1,4 +1,4 @@
-import json, os
+import os
 from dotenv import find_dotenv, load_dotenv
 
 _ = load_dotenv(find_dotenv())
@@ -38,6 +38,7 @@ if MISSING_VARS:
     raise EnvironmentError(
         f"Missing required environment variables: {', '.join(MISSING_VARS)}"
     )
+
 
 class Config:
     RPC_URL = os.getenv("RPC_URL")

@@ -1,23 +1,20 @@
-import os
-import sys
-import time
 from typing import Optional, List, Dict
 
 import praw
 from praw.models import Subreddit, Submission, Comment
 from pydantic import BaseModel, Field
 
-from trader.agentic.prompts import PromptHandler
-from trader.agentic.utils import get_structured_response
 from trader.config import Config
 # ---------------------------------------------------------------------------
 # DATA MODELS (Pydantic) to store or serialize as needed
 # ---------------------------------------------------------------------------
 
+
 class CommentData(BaseModel):
     """
     Example model for representing a single comment in a thread.
     """
+
     comment_id: str
     parent_id: str
     body: str
@@ -27,6 +24,7 @@ class CommentData(BaseModel):
     depth: int
     children: List["CommentData"] = Field(default_factory=list, repr=False)
 
+
 CommentData.model_rebuild()
 
 
@@ -34,6 +32,7 @@ class ThreadBlock(BaseModel):
     """
     Example for how you might store a formatted text block of comments.
     """
+
     text_block: str
 
 
@@ -41,6 +40,7 @@ class SubredditData(BaseModel):
     """
     Minimal representation of a subreddit’s attributes.
     """
+
     name: str
     subscriber_count: int = 0
     active_user_count: int = 0
@@ -56,12 +56,14 @@ class SubredditData(BaseModel):
 # PRAW-BASED CLIENT
 # ---------------------------------------------------------------------------
 
-class PrawRedditClient:
 
-    def __init__(self,
-                 client_id: Optional[str] = Config.REDDIT_CLIENT_ID,
-                 client_secret: Optional[str] = Config.REDDIT_CLIENT_SECRET,
-                 user_agent: Optional[str] = Config.REDDIT_USER_AGENT):
+class PrawRedditClient:
+    def __init__(
+        self,
+        client_id: Optional[str] = Config.REDDIT_CLIENT_ID,
+        client_secret: Optional[str] = Config.REDDIT_CLIENT_SECRET,
+        user_agent: Optional[str] = Config.REDDIT_USER_AGENT,
+    ):
         _client_id = client_id
         _client_secret = client_secret
         _user_agent = user_agent
@@ -73,7 +75,6 @@ class PrawRedditClient:
         )
 
         self.observatories = ["CryptoCurrency", "memecoins", "Memecoinhub"]
-
 
     # -----------------------------------------------------------------------
     # SUBREDDIT SEARCH / LOOKUP
@@ -87,21 +88,26 @@ class PrawRedditClient:
         results = []
         for sub in self.reddit.subreddits.search(query, limit=limit):
             try:
-                results.append(SubredditData(
-                    name=sub.display_name,
-                    subscriber_count=sub.subscribers,
-                    active_user_count=sub.active_user_count or 0,
-                    icon_img=sub.icon_img or "",
-                    key_color=sub.key_color or "",
-                    description = getattr(sub, "public_description", ""),
-                    is_chat_post_feature_enabled=getattr(sub, "is_chat_post_feature_enabled", False),
-                    allow_chat_post_creation=getattr(sub, "allow_chat_post_creation", False),
-                    allow_images=sub.allow_images
-                ))
+                results.append(
+                    SubredditData(
+                        name=sub.display_name,
+                        subscriber_count=sub.subscribers,
+                        active_user_count=sub.active_user_count or 0,
+                        icon_img=sub.icon_img or "",
+                        key_color=sub.key_color or "",
+                        description=getattr(sub, "public_description", ""),
+                        is_chat_post_feature_enabled=getattr(
+                            sub, "is_chat_post_feature_enabled", False
+                        ),
+                        allow_chat_post_creation=getattr(
+                            sub, "allow_chat_post_creation", False
+                        ),
+                        allow_images=sub.allow_images,
+                    )
+                )
             except Exception as e:
                 logging.warning(f"Skipping a subreddit due to error: {e}")
         return results
-    
 
     def get_subreddit(self, subreddit_name: str) -> Optional[Subreddit]:
         """
@@ -111,11 +117,10 @@ class PrawRedditClient:
             sub = self.reddit.subreddit(subreddit_name)
             _ = sub.created_utc
             return sub
-        
+
         except Exception as e:
             logging.error(f"Error retrieving subreddit {subreddit_name}: {e}")
             return None
-        
 
     def verify_subreddit_exists(self, subreddit_name: str) -> bool:
         """
@@ -147,7 +152,9 @@ class PrawRedditClient:
             posts.append(self._parse_submission(submission))
         return posts
 
-    def get_subreddit_top(self, subreddit_name: str, time_filter: str = "day", limit: int = 10):
+    def get_subreddit_top(
+        self, subreddit_name: str, time_filter: str = "day", limit: int = 10
+    ):
         posts = []
         sub = self.get_subreddit(subreddit_name)
         if not sub:
@@ -160,7 +167,9 @@ class PrawRedditClient:
     # -----------------------------------------------------------------------
     # SEARCH FOR POSTS IN A SUBREDDIT
     # -----------------------------------------------------------------------
-    def search_subreddit_posts(self, subreddit_name: str, query: str, sort: str = "new", limit: int = 50):
+    def search_subreddit_posts(
+        self, subreddit_name: str, query: str, sort: str = "new", limit: int = 50
+    ):
         """
         The 'sort' can be 'new', 'hot', 'top', 'relevance', etc.
         """
@@ -177,7 +186,9 @@ class PrawRedditClient:
     # -----------------------------------------------------------------------
     # SUBMISSION & COMMENT PARSING
     # -----------------------------------------------------------------------
-    def get_submission_comments(self, subreddit_name: str, post_id: str, limit: Optional[int] = None) -> List[CommentData]:
+    def get_submission_comments(
+        self, subreddit_name: str, post_id: str, limit: Optional[int] = None
+    ) -> List[CommentData]:
         """
         Fetch comments from a particular submission (post).
         Replace MoreComments so we can get the full tree if limit=None or a big number.
@@ -187,29 +198,33 @@ class PrawRedditClient:
         if not sub:
             return []
 
-        submission = self.reddit.submission(id=post_id)  
+        submission = self.reddit.submission(id=post_id)
         submission.comments.replace_more(limit=0)
         comment_forest = submission.comments.list()
 
         parsed_comments = []
         for c in comment_forest:
             if isinstance(c, Comment):
-                parsed_comments.append(CommentData(
-                    comment_id=c.id,
-                    parent_id=c.parent_id,
-                    body=c.body,
-                    score=c.score,
-                    downs=c.downs,
-                    author=str(c.author) if c.author else "[deleted]",
-                    depth=c.depth
-                ))
+                parsed_comments.append(
+                    CommentData(
+                        comment_id=c.id,
+                        parent_id=c.parent_id,
+                        body=c.body,
+                        score=c.score,
+                        downs=c.downs,
+                        author=str(c.author) if c.author else "[deleted]",
+                        depth=c.depth,
+                    )
+                )
         return parsed_comments
 
     def parse_comment_tree(self, submission: Submission) -> List[CommentData]:
         submission.comments.replace_more(limit=0)
         return self._walk_comment_forest(submission.comments)
 
-    def build_comment_hierarchy(self, parsed_comments: List[CommentData], post_id: str) -> List[CommentData]:
+    def build_comment_hierarchy(
+        self, parsed_comments: List[CommentData], post_id: str
+    ) -> List[CommentData]:
         """
         Convert a flat list of CommentData into a hierarchy.
         """
@@ -247,7 +262,6 @@ class PrawRedditClient:
             return line
 
     def create_thread_block_model(self, top_comment: CommentData) -> ThreadBlock:
-
         block_str = self.build_thread_block(top_comment)
         text_block = f"COMMENT THREAD:\n\n{block_str}\n"
         return ThreadBlock(text_block=text_block)
@@ -267,7 +281,7 @@ class PrawRedditClient:
             "author": str(submission.author) if submission.author else "[deleted]",
             "num_comments": submission.num_comments,
             "selftext": submission.selftext,
-            "url": submission.url
+            "url": submission.url,
         }
 
 

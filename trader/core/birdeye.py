@@ -1,9 +1,7 @@
 import logging
-import os
 import threading
 import time
 from datetime import datetime, timezone, timedelta
-from time import sleep
 from typing import List, Optional, Any, Union, Dict, Tuple
 
 import requests
@@ -19,13 +17,15 @@ class BirdEyeConfig(BaseModel):
     api_key: str
     base_url: HttpUrl = "https://public-api.birdeye.so"
 
+
 class Candle(BaseModel):
     """A Pydantic model for parsing OHLCV data."""
-    o: float       # open
-    h: float       # high
-    l: float       # low
-    c: float       # close
-    v: float       # volume
+
+    o: float  # open
+    h: float  # high
+    l: float  # low
+    c: float  # close
+    v: float  # volume
     unixTime: int
     address: str
     type: str
@@ -39,13 +39,14 @@ class TokenInfo(BaseModel):
     balance: str
     uiAmount: float
     chainId: str
-    logoURI: Optional[str] = None # to encompass both HttpUrl and str
+    logoURI: Optional[str] = None  # to encompass both HttpUrl and str
     priceUsd: Optional[float] = None
     valueUsd: Optional[float] = None
 
     @field_validator("balance", mode="before")
     def ensure_string_balance(cls, value):
         return str(value) if isinstance(value, (int, float)) else value
+
 
 class Transaction(BaseModel):
     txHash: str
@@ -59,6 +60,7 @@ class Transaction(BaseModel):
     balanceChange: Optional[List[dict]] = None
     contractLabel: Optional[dict] = None
 
+
 class Trader(BaseModel):
     network: Optional[str] = None
     address: Optional[str] = None
@@ -68,6 +70,7 @@ class Trader(BaseModel):
 
     class Config:
         extra = "allow"  # Ignore extra fields
+
 
 class TokenSecurityInfo(BaseModel):
     creatorAddress: Optional[str]
@@ -107,12 +110,21 @@ class TokenSecurityInfo(BaseModel):
     @property
     def creation_time_human(self) -> Optional[str]:
         """Convert creationTime from UNIX timestamp to a human-readable format."""
-        return datetime.utcfromtimestamp(self.creationTime).strftime('%Y-%m-%d %H:%M:%S') if self.creationTime else None
+        return (
+            datetime.utcfromtimestamp(self.creationTime).strftime("%Y-%m-%d %H:%M:%S")
+            if self.creationTime
+            else None
+        )
 
     @property
     def mint_time_human(self) -> Optional[str]:
         """Convert mintTime from UNIX timestamp to a human-readable format."""
-        return datetime.utcfromtimestamp(self.mintTime).strftime('%Y-%m-%d %H:%M:%S') if self.mintTime else None
+        return (
+            datetime.utcfromtimestamp(self.mintTime).strftime("%Y-%m-%d %H:%M:%S")
+            if self.mintTime
+            else None
+        )
+
 
 class Extensions(BaseModel):
     coingeckoId: Optional[str] = None
@@ -124,6 +136,7 @@ class Extensions(BaseModel):
     description: Optional[str] = None
     discord: Optional[HttpUrl] = None
     medium: Optional[HttpUrl] = None
+
 
 class TokenOverview(BaseModel):
     address: Optional[str]
@@ -336,8 +349,14 @@ class BirdEyeClient:
 
     def _create_url(self, endpoint: str, **params) -> str:
         """Generate the URL with query parameters."""
-        query_string = "&".join([f"{key}={value}" for key, value in params.items() if value is not None])
-        return f"{self.config.base_url}/{endpoint}?{query_string}" if params else f"{self.config.base_url}/{endpoint}"
+        query_string = "&".join(
+            [f"{key}={value}" for key, value in params.items() if value is not None]
+        )
+        return (
+            f"{self.config.base_url}/{endpoint}?{query_string}"
+            if params
+            else f"{self.config.base_url}/{endpoint}"
+        )
 
     def _headers(self) -> dict:
         return {
@@ -376,14 +395,14 @@ class BirdEyeClient:
             for token in balances:
                 if token.address == token_address:
                     token_decimals = token.decimals or 0  # Handle potential None values
-                    token_balance = float(token.balance) / (10 ** token_decimals)
+                    token_balance = float(token.balance) / (10**token_decimals)
                     return token_balance
         except Exception as e:
             logging.error(f"Error fetching balances for wallet {wallet_address}: {e}")
 
         # Return 0.0 if the token address is not found or an error occurs
         return 0.0
-    
+
     def get_all_balances(self, wallet_address: str) -> float:
         """
         Check balances against positions in database.
@@ -397,8 +416,8 @@ class BirdEyeClient:
         # Return 0.0 if the token address is not found or an error occurs
         return 0.0
 
-
-    def get_balance_change_since_tx(self,
+    def get_balance_change_since_tx(
+        self,
         tx_sig: str,
         user_pubkey: str,
         output_mint: str,
@@ -425,12 +444,14 @@ class BirdEyeClient:
         """
 
         # 1) Verify transaction and get post-TX balance
-        tx_status, tx_balance_change, post_balance_int = verify_tx_and_get_balance_change(
-            client=self.solana_client,
-            tx_sig=tx_sig,
-            user_pubkey=user_pubkey,
-            output_mint=output_mint,
-            output_decimals=output_decimals,
+        tx_status, tx_balance_change, post_balance_int = (
+            verify_tx_and_get_balance_change(
+                client=self.solana_client,
+                tx_sig=tx_sig,
+                user_pubkey=user_pubkey,
+                output_mint=output_mint,
+                output_decimals=output_decimals,
+            )
         )
 
         # If transaction is not finalized or failed/not found, return early
@@ -442,7 +463,7 @@ class BirdEyeClient:
         # Convert it to a float by dividing by 10**decimals:
         post_balance_float = 0.0
         if post_balance_int is not None:
-            post_balance_float = post_balance_int / (10 ** output_decimals)
+            post_balance_float = post_balance_int / (10**output_decimals)
 
         # 2) Fetch current balance using BirdEye
         current_balance_float = self.get_token_balance(
@@ -455,10 +476,13 @@ class BirdEyeClient:
 
         return tx_status, balance_diff_since_tx
 
-
-    def fetch_transaction_history(self, wallet: str, limit: int = 10, offset: int = 0) -> List[Transaction]:
+    def fetch_transaction_history(
+        self, wallet: str, limit: int = 10, offset: int = 0
+    ) -> List[Transaction]:
         self._rate_limit()
-        url = self._create_url("v1/wallet/tx_list", wallet=wallet, limit=limit, offset=offset)
+        url = self._create_url(
+            "v1/wallet/tx_list", wallet=wallet, limit=limit, offset=offset
+        )
         response = requests.get(url, headers=self._headers())
         response.raise_for_status()
         data = response.json()
@@ -468,16 +492,20 @@ class BirdEyeClient:
         tokens = set()
         for tx in transactions:
             # Use datetime.strptime to parse ISO 8601 format with timezone
-            tx_time = datetime.strptime(tx.blockTime, '%Y-%m-%dT%H:%M:%S%z')
+            tx_time = datetime.strptime(tx.blockTime, "%Y-%m-%dT%H:%M:%S%z")
             if datetime.now(timezone.utc) - tx_time <= timedelta(minutes=10):
                 if tx.balanceChange:
                     for change in tx.balanceChange:
-                        if change.get("amount", 0) > 0 and change.get("symbol") != "SOL":  # Exclude native SOL
+                        if (
+                            change.get("amount", 0) > 0
+                            and change.get("symbol") != "SOL"
+                        ):  # Exclude native SOL
                             tokens.add(change.get("address"))
         return tokens
-    
-    def fetch_current_token_balance_safely(self, wallet_pubkey: str, token_mint: str) -> float:
 
+    def fetch_current_token_balance_safely(
+        self, wallet_pubkey: str, token_mint: str
+    ) -> float:
         try:
             balances = self.fetch_balances(wallet_pubkey)
             for tkn in balances:
@@ -487,7 +515,6 @@ class BirdEyeClient:
         except Exception as e:
             logging.error(f"Could not fetch balance for {token_mint}: {e}")
             return 0.0
-
 
     def fetch_top_traders(self, count: int = 10, period: str = "1W") -> List[Trader]:
         results = []
@@ -511,15 +538,21 @@ class BirdEyeClient:
                     logging.warning(f"Empty response for offset {offset}. Skipping.")
                     continue
                 if "application/json" not in response.headers.get("Content-Type", ""):
-                    logging.warning(f"Unexpected Content-Type for offset {offset}: {response.headers.get('Content-Type')}")
+                    logging.warning(
+                        f"Unexpected Content-Type for offset {offset}: {response.headers.get('Content-Type')}"
+                    )
                     continue
 
                 response.raise_for_status()
 
                 data = response.json()
-                results.extend([Trader(**item) for item in data["data"].get("items", [])])
+                results.extend(
+                    [Trader(**item) for item in data["data"].get("items", [])]
+                )
             except requests.exceptions.JSONDecodeError:
-                logging.error(f"Failed to parse JSON for offset {offset}: {response.text[:500]}")
+                logging.error(
+                    f"Failed to parse JSON for offset {offset}: {response.text[:500]}"
+                )
                 continue
             except Exception as e:
                 logging.error(f"Error fetching data for offset {offset}: {e}")
@@ -542,13 +575,15 @@ class BirdEyeClient:
         headers = {
             "accept": "application/json",
             "x-chain": "solana",
-            "X-API-KEY": self.config.api_key
+            "X-API-KEY": self.config.api_key,
         }
 
         response = requests.get(url, headers=headers)
 
         if response.status_code != 200:
-            logging.error(f"Error: Received {response.status_code} for address {address}")
+            logging.error(
+                f"Error: Received {response.status_code} for address {address}"
+            )
             logging.error(f"Response Text: {response.text}")
             return None  # Gracefully handle errors without raising an exception
 
@@ -556,9 +591,10 @@ class BirdEyeClient:
             data = response.json()
             return TokenSecurityInfo(**data["data"])
         except requests.exceptions.JSONDecodeError:
-            logging.error(f"Failed to parse JSON response for address {address}: {response.text[:500]}")
+            logging.error(
+                f"Failed to parse JSON response for address {address}: {response.text[:500]}"
+            )
             return None
-
 
     # def fetch_token_trade_data(self, address: str):
 
@@ -578,7 +614,9 @@ class BirdEyeClient:
         response = requests.get(url, headers=self._headers())
 
         if response.status_code != 200:
-            logging.error(f"Error: Received {response.status_code} for address {address}")
+            logging.error(
+                f"Error: Received {response.status_code} for address {address}"
+            )
             logging.error(f"Response Text: {response.text}")
             return None  # Gracefully handle errors without raising an exception
 
@@ -586,17 +624,22 @@ class BirdEyeClient:
             data = response.json()
             if "data" in data and isinstance(data["data"], dict):
                 # Safely instantiate the model with partial data
-                return TokenOverview(**{key: data["data"].get(key) for key in TokenOverview.model_fields})
+                return TokenOverview(
+                    **{key: data["data"].get(key) for key in TokenOverview.model_fields}
+                )
             else:
-                logging.error(f"Unexpected response format for address {address}: {data}")
+                logging.error(
+                    f"Unexpected response format for address {address}: {data}"
+                )
                 return None
         except requests.exceptions.JSONDecodeError:
-            logging.error(f"Failed to parse JSON response for address {address}: {response.text[:500]}")
+            logging.error(
+                f"Failed to parse JSON response for address {address}: {response.text[:500]}"
+            )
             return None
         except ValidationError as e:
             logging.error(f"Validation error for address {address}: {e}")
             return None
-    
 
     def fetch_new_holders_last_24h(self, address: str) -> Optional[List[str]]:
         """
@@ -609,22 +652,24 @@ class BirdEyeClient:
             Optional[List[str]]: List of unique wallet addresses that added the token in the last 24 hours.
         """
         # unix 24h vs unix now
-        before_time = int(time.time()) 
+        int(time.time())
         after_time = int(time.time()) - 24 * 60 * 60
-        url = f"https://public-api.birdeye.so/defi/txs/token/seek_by_time"
+        url = "https://public-api.birdeye.so/defi/txs/token/seek_by_time"
 
         params = {
             "address": address,
             "tx_type": "add",
             # "before_time": before_time,
             "after_time": after_time,
-            "limit": 50
+            "limit": 50,
         }
 
         response = requests.get(url, headers=self._headers(), params=params)
 
         if response.status_code != 200:
-            logging.error(f"Error: Received {response.status_code} for address {address}")
+            logging.error(
+                f"Error: Received {response.status_code} for address {address}"
+            )
             logging.error(f"Response Text: {response.text}")
             return None
 
@@ -632,7 +677,9 @@ class BirdEyeClient:
             data = response.json()
             if data.get("success") and "items" in data.get("data", {}):
                 transactions = data["data"]["items"]
-                unique_owners_24h = {tx["owner"] for tx in transactions if "owner" in tx}
+                unique_owners_24h = {
+                    tx["owner"] for tx in transactions if "owner" in tx
+                }
                 return len(unique_owners_24h)
             else:
                 logging.error(f"Unexpected response format: {data}")
@@ -641,13 +688,12 @@ class BirdEyeClient:
             logging.error(f"Failed to parse JSON response: {response.text[:500]}")
             return None
 
-
     def fetch_candles(
         self,
         address: str,
         timeframe: str = "5m",
         time_from: Optional[int] = None,
-        time_to: Optional[int] = None
+        time_to: Optional[int] = None,
     ) -> List[Candle]:
         """
         Fetch OHLCV (candlestick) data for a given token within an optional date/time range.
@@ -715,13 +761,8 @@ class BirdEyeClient:
         return value
 
     def fetch_historical_prices_unix(
-        self,
-        address: str,
-        start_time: int,
-        end_time: int,
-        candles: str = "1D"
+        self, address: str, start_time: int, end_time: int, candles: str = "1D"
     ) -> Optional[List[Dict[str, float]]]:
-
         base_url = f"{self.config.base_url}/defi/history_price"
         # base_url = self._create_url("defi/history_price", address=address)
 
@@ -732,10 +773,12 @@ class BirdEyeClient:
             "address_type": "token",
             "type": candles,  # try 3D. Do not try 1M
             "time_from": start_time,
-            "time_to": end_time
+            "time_to": end_time,
         }
         try:
-            resp = requests.get(base_url, headers=self._headers(), params=params, timeout=10)
+            resp = requests.get(
+                base_url, headers=self._headers(), params=params, timeout=10
+            )
             data = resp.json()
             if data.get("success"):
                 items = data["data"]["items"]
@@ -749,9 +792,12 @@ class BirdEyeClient:
             logging.error(f"Exception in fetch_historical_prices_unix: {e}")
             return None
 
+
 def tester():
-    import pandas as pd, time
+    import pandas as pd
+    import time
     from ta.trend import ADXIndicator
+
     config = BirdEyeConfig(api_key=Config.BIRDEYE_API_KEY)
     client = BirdEyeClient(config=config)
     # WRAPPED_SOL_MINT_ADDRESS = "So11111111111111111111111111111111111111111"
@@ -773,7 +819,7 @@ def tester():
                 address=WRAPPED_SOL_OHLCV_ADDRESS,
                 timeframe="30m",
                 time_from=time_from,
-                time_to=now
+                time_to=now,
             )
         except Exception as e:
             logging.error(f"Error fetching SOL candles for market trend analysis: {e}")
@@ -785,28 +831,31 @@ def tester():
             market_trend = "none"
             return
 
-        df = pd.DataFrame([c.model_dump() for c in candles]) # fetch candles gives list of Candle objects
+        df = pd.DataFrame(
+            [c.model_dump() for c in candles]
+        )  # fetch candles gives list of Candle objects
 
         if len(df) < window:
-            logging.warning("Not enough candle data to compute ADX. Setting market trend to 'none'.")
+            logging.warning(
+                "Not enough candle data to compute ADX. Setting market trend to 'none'."
+            )
             market_trend = "none"
             return
         try:
-            df['high'] = df['h'].astype(float)
-            df['low'] = df['l'].astype(float)
-            df['close'] = df['c'].astype(float)
+            df["high"] = df["h"].astype(float)
+            df["low"] = df["l"].astype(float)
+            df["close"] = df["c"].astype(float)
         except Exception as e:
-            logging.error(f"Error processing candle data for market trend analysis: {e}")
+            logging.error(
+                f"Error processing candle data for market trend analysis: {e}"
+            )
             market_trend = "none"
             return
 
         # Calculate ADX and its directional indices.
         adx_indicator = ADXIndicator(
-            high=df['high'], 
-            low=df['low'], 
-            close=df['close'], 
-            window=window
-            )
+            high=df["high"], low=df["low"], close=df["close"], window=window
+        )
         logging.info(f"ADX indicator: {adx_indicator}")
         try:
             adx = adx_indicator.adx().iloc[-1]
@@ -820,7 +869,9 @@ def tester():
             market_trend = "none"
             return
 
-        logging.info(f"Market Trend Analysis - ADX: {adx:.2f}, DI+: {di_plus:.2f}, DI-: {di_minus:.2f} at {datetime.now()}")
+        logging.info(
+            f"Market Trend Analysis - ADX: {adx:.2f}, DI+: {di_plus:.2f}, DI-: {di_minus:.2f} at {datetime.now()}"
+        )
 
         if di_minus > di_plus and adx > adx_threshold:
             market_trend = "negative"
@@ -830,11 +881,9 @@ def tester():
             market_trend = "none"
 
         logging.info(f"Market trend: {market_trend}")
-    
-    update_market_trend()
 
+    update_market_trend()
 
 
 if __name__ == "__main__":
     tester()
-

@@ -1,7 +1,5 @@
 import logging
 import math
-import os
-import sys
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Literal
 
@@ -12,6 +10,7 @@ from pydantic import BaseModel, field_validator
 from database.supa_client import insert_row, execute_sql_query, upsert_row_static
 from trader.agentic.data_models import CultinessResult, SentimentResult
 
+
 class TokenInfo(BaseModel):
     address: str
     name: Optional[str] = None
@@ -20,22 +19,25 @@ class TokenInfo(BaseModel):
     balance: str
     uiAmount: float
     chainId: str
-    logoURI: Optional[str] = None # nonetype to handle logoURI
+    logoURI: Optional[str] = None  # nonetype to handle logoURI
     priceUsd: Optional[float] = None
     valueUsd: Optional[float] = None
 
     @field_validator("balance", mode="before")
     def ensure_string_balance(cls, value):
         return str(value) if isinstance(value, (int, float)) else value
-    
+
+
 class DatabaseLogger:
     def __init__(self, table_name: str, bot_executed: Optional[str] = None):
         self.TABLE_NAME = table_name
         self.BOT_EXECUTED = bot_executed
 
         self.positions_df = pd.DataFrame()
-    
-    def get_max_recorded_price(self, token_address: str, position_id: int) -> Optional[float]:
+
+    def get_max_recorded_price(
+        self, token_address: str, position_id: int
+    ) -> Optional[float]:
         query = f"""
             SELECT max_recorded_price FROM positions WHERE token_address = '{token_address}' and position_id = {position_id} LIMIT 1
         """
@@ -46,7 +48,9 @@ class DatabaseLogger:
                 resultant = result[0].get("result")
             return resultant.get("max_recorded_price", 0.0)
         except Exception as e:
-            logging.error(f"Failed to get max recorded price for {token_address} and position_id {position_id}. Error: {e}")
+            logging.error(
+                f"Failed to get max recorded price for {token_address} and position_id {position_id}. Error: {e}"
+            )
             return 0.0
 
     def upsert_position(
@@ -72,7 +76,7 @@ class DatabaseLogger:
         type: Optional[str] = "market",
     ):
         """
-        Upserts a position by its primary key, position_id. 
+        Upserts a position by its primary key, position_id.
         Updates the row if it exists, otherwise logs an error.
 
         Args:
@@ -84,35 +88,51 @@ class DatabaseLogger:
 
         if entry_price:
             entry_price = float(entry_price) if not math.isnan(entry_price) else 0.0
-        
+
         if entry_amount:
             entry_amount = float(entry_amount) if not math.isnan(entry_amount) else 0.0
-        
+
         if partial_sold_cumulative:
-            partial_sold_cumulative = float(partial_sold_cumulative) if not math.isnan(partial_sold_cumulative) else 0.0
-        
+            partial_sold_cumulative = (
+                float(partial_sold_cumulative)
+                if not math.isnan(partial_sold_cumulative)
+                else 0.0
+            )
+
         if max_recorded_price:
-            max_recorded_price = float(max_recorded_price) if not math.isnan(max_recorded_price) else 0.0
-        
+            max_recorded_price = (
+                float(max_recorded_price) if not math.isnan(max_recorded_price) else 0.0
+            )
+
         if amount_holding:
-            amount_holding = float(amount_holding) if not math.isnan(amount_holding) else 0.0
-        
+            amount_holding = (
+                float(amount_holding) if not math.isnan(amount_holding) else 0.0
+            )
+
         if amount_sold:
             amount_sold = float(amount_sold) if not math.isnan(amount_sold) else 0.0
-        
+
         if realized_pnl:
             realized_pnl = float(realized_pnl) if not math.isnan(realized_pnl) else 0.0
-        
+
         if max_recorded_price:
             db_recorded_price = self.get_max_recorded_price(token_address, position_id)
             if db_recorded_price and db_recorded_price > max_recorded_price:
-                logging.info(f"DB recorded price {db_recorded_price} is greater than max_recorded_price {max_recorded_price}. Setting max_recorded_price to None.")
+                logging.info(
+                    f"DB recorded price {db_recorded_price} is greater than max_recorded_price {max_recorded_price}. Setting max_recorded_price to None."
+                )
                 max_recorded_price = None
 
         trace = {
-            "entry_time": entry_time.isoformat() if isinstance(entry_time, datetime) else entry_time,
-            "last_trade_time": last_trade_time.isoformat() if isinstance(last_trade_time, datetime) else last_trade_time,
-            "next_tradable": next_tradable.isoformat() if isinstance(next_tradable, datetime) else next_tradable,
+            "entry_time": entry_time.isoformat()
+            if isinstance(entry_time, datetime)
+            else entry_time,
+            "last_trade_time": last_trade_time.isoformat()
+            if isinstance(last_trade_time, datetime)
+            else last_trade_time,
+            "next_tradable": next_tradable.isoformat()
+            if isinstance(next_tradable, datetime)
+            else next_tradable,
             "token_address": token_address,
             "status": trade_status,
             "ticker_symbol": ticker_symbol,
@@ -128,15 +148,19 @@ class DatabaseLogger:
             "realized_pnl": realized_pnl,
             "type": type,
             "bot_executed": self.BOT_EXECUTED,
-            "wallet_address": wallet_address
+            "wallet_address": wallet_address,
         }
 
         # update_fields = {k: (int(v) if isinstance(v, np.int64) else v) for k, v in trace.items() if v is not None}
         update_fields = {
-                    k: (float(v) if isinstance(v, (np.int64, np.int32)) else 
-                    (int(v) if isinstance(v, np.integer) else v))
-                    for k, v in trace.items() if v is not None
-                }
+            k: (
+                float(v)
+                if isinstance(v, (np.int64, np.int32))
+                else (int(v) if isinstance(v, np.integer) else v)
+            )
+            for k, v in trace.items()
+            if v is not None
+        }
 
         if not update_fields:
             logging.warning("No fields provided to update.")
@@ -146,11 +170,14 @@ class DatabaseLogger:
             update_fields["position_id"] = int(position_id)
 
             upsert_row_static("positions", update_fields)
-            logging.info(f"Successfully upserted position with ID {position_id}: {update_fields}")
+            logging.info(
+                f"Successfully upserted position with ID {position_id}: {update_fields}"
+            )
         except Exception as e:
-            logging.error(f"Failed to upsert position with ID {position_id}. Error: {e}")
+            logging.error(
+                f"Failed to upsert position with ID {position_id}. Error: {e}"
+            )
             print(f"Failed to upsert position with ID {position_id}. Error: {e}")
-
 
     def record_trade(
         self,
@@ -167,15 +194,15 @@ class DatabaseLogger:
         type: str = "market",
         blockchain: str = "solana",
     ):
-        
         timestamp = timestamp.isoformat()
 
         if entry_exit_price:
-            entry_exit_price = float(entry_exit_price) if not math.isnan(entry_exit_price) else 0.0
-        
+            entry_exit_price = (
+                float(entry_exit_price) if not math.isnan(entry_exit_price) else 0.0
+            )
+
         if amount:
             amount = float(amount) if not math.isnan(amount) else 0.0
-        
 
         trace = {
             "position_id": position_id,
@@ -193,24 +220,32 @@ class DatabaseLogger:
             "wallet_address": wallet_address,
         }
 
-
         insert_fields = {
-                    k: (float(v) if isinstance(v, (np.int64, np.int32)) else 
-                    (int(v) if isinstance(v, np.integer) else v))
-                    for k, v in trace.items() if v is not None
-                }
-        
+            k: (
+                float(v)
+                if isinstance(v, (np.int64, np.int32))
+                else (int(v) if isinstance(v, np.integer) else v)
+            )
+            for k, v in trace.items()
+            if v is not None
+        }
+
         insert_fields["position_id"] = int(position_id)
 
         try:
             insert_row("trades", insert_fields)
-            logging.info(f"Successfully recorded {buy_sell} trade for ${amount} of {token_address} at {timestamp}.")
+            logging.info(
+                f"Successfully recorded {buy_sell} trade for ${amount} of {token_address} at {timestamp}."
+            )
 
         except Exception as e:
-            logging.error(f"Failed to record {buy_sell} trade of {token_address}. Error: {e}")
+            logging.error(
+                f"Failed to record {buy_sell} trade of {token_address}. Error: {e}"
+            )
 
-
-    def log_cultiness(self, ticker: str, token_address: str, token_name: str, result: CultinessResult):
+    def log_cultiness(
+        self, ticker: str, token_address: str, token_name: str, result: CultinessResult
+    ):
         current_time = datetime.now().isoformat()
 
         last_7_days_scores = self._fetch_recent_scores(ticker, days=7)
@@ -233,26 +268,28 @@ class DatabaseLogger:
 
         try:
             insert_row(self.TABLE_NAME, trace)
-            logging.info(f"Successfully logged cultiness for {ticker} at {current_time}.")
+            logging.info(
+                f"Successfully logged cultiness for {ticker} at {current_time}."
+            )
 
         except Exception as e:
             logging.error(f"Failed to log cultiness. Error: {e}")
 
-
-    def log_sentiment(self, ticker: str,
-                       token_address: str, 
-                       token_name: str,
-                       result: SentimentResult,
-                        num_holders: int = None,
-                        volume_24h: str = None,
-                        buy_sell_ratio_24h: float = None,
-                        holders_percent_increase_24h: float = None,
-                        volume_marketcap_ratio: float = None,
-                        avg_holders_distribution: float = None,
-                        market_cap: float = None,
-                        links: List[str] = None
-                       ):
-
+    def log_sentiment(
+        self,
+        ticker: str,
+        token_address: str,
+        token_name: str,
+        result: SentimentResult,
+        num_holders: int = None,
+        volume_24h: str = None,
+        buy_sell_ratio_24h: float = None,
+        holders_percent_increase_24h: float = None,
+        volume_marketcap_ratio: float = None,
+        avg_holders_distribution: float = None,
+        market_cap: float = None,
+        links: List[str] = None,
+    ):
         timestamp = datetime.now().isoformat()
         trace = {
             "timestamp": timestamp,
@@ -270,7 +307,7 @@ class DatabaseLogger:
             "volume_24h": volume_24h,
             "num_holders": num_holders,
             "buy_sell_ratio_24h": buy_sell_ratio_24h,
-            "urls": links
+            "urls": links,
         }
         try:
             insert_row("sentiment", trace)
@@ -278,7 +315,6 @@ class DatabaseLogger:
 
         except Exception as e:
             logging.error(f"Failed to log sentiment. Error: {e}")
-
 
     def _fetch_recent_scores(self, ticker: str, days: int) -> List[float]:
         cutoff_time = datetime.now() - timedelta(days=days)
@@ -291,12 +327,11 @@ class DatabaseLogger:
         query = query.strip()
         try:
             results = execute_sql_query(query, (ticker, cutoff_time))
-            return [row['cult_score'] for row in results]
-        
+            return [row["cult_score"] for row in results]
+
         except Exception as e:
             logging.error(f"Failed to fetch recent scores for {ticker}. Error: {e}")
             return []
-
 
     # --------------------------------------------------------------------
     # Initialization Methods
@@ -325,7 +360,9 @@ class DatabaseLogger:
                 return position_id
 
         try:
-            insert_result = insert_row("positions", {"token_address": token_address, "status": "open"})
+            insert_result = insert_row(
+                "positions", {"token_address": token_address, "status": "open"}
+            )
         except Exception as e:
             logging.error(f"Failed to insert row for token {token_address}. Error: {e}")
             insert_result = None
@@ -336,7 +373,7 @@ class DatabaseLogger:
         new_position_id = insert_result[0]["position_id"]
 
         return new_position_id
-    
+
     def qol_upsert_positions(self):
         query = f"""
                 SELECT
@@ -365,31 +402,34 @@ class DatabaseLogger:
                 amount_holding = float(result.get("amount_holding", 0.0))
                 if amount_holding != 0.0:
                     amount_holding = float(0.0)
-                    upsert_row_static("positions", {"position_id": position_id, "token_address": token_address, "amount_holding": amount_holding})
+                    upsert_row_static(
+                        "positions",
+                        {
+                            "position_id": position_id,
+                            "token_address": token_address,
+                            "amount_holding": amount_holding,
+                        },
+                    )
             except Exception as e:
                 logging.error(f"Failed to upsert position {position_id}. Error: {e}")
                 continue
-        
-        
 
-    
-    def load_positions_from_db(self,
-                                wallet_address: str, 
-                                balances: List[TokenInfo], 
-                                barred_addresses: List[str] = [],
-                                negligible_value_threshold = 0.05
-                                ):
+    def load_positions_from_db(
+        self,
+        wallet_address: str,
+        balances: List[TokenInfo],
+        barred_addresses: List[str] = [],
+        negligible_value_threshold=0.05,
+    ):
         # add USDC Mint and dummy SOL address to barred_addresses
-        barred_addresses.extend([
-            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-            ])
-        
+        barred_addresses.extend(["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"])
+
         try:
             self.qol_upsert_positions()
         except Exception as e:
             logging.error(f"Failed to upsert closed positions. Error: {e}")
             return
-        
+
         try:
             query = f"""
                 SELECT
@@ -419,7 +459,7 @@ class DatabaseLogger:
                 if b.address in barred_addresses:
                     continue
 
-                onchain_amount = float(b.balance) / (10 ** b.decimals)
+                onchain_amount = float(b.balance) / (10**b.decimals)
                 token_value = onchain_amount * (b.priceUsd or 0.0)
 
                 onchain_bal_map[b.address] = {
@@ -429,7 +469,7 @@ class DatabaseLogger:
                     "decimals": b.decimals,
                     "priceUsd": b.priceUsd,
                     "balance": b.balance,
-                    "value": token_value
+                    "value": token_value,
                 }
 
             if not rows:
@@ -450,21 +490,23 @@ class DatabaseLogger:
 
                     position_id = self.find_position_id_small(b.address)
 
-                    new_entries.append({
-                        "position_id": position_id,
-                        "token_address": b.address,
-                        "ticker": b.symbol or "",
-                        "token_name": b.name or "",
-                        "entry_price": 0.0,
-                        "entry_amount": chain_amt,
-                        "current_amount": chain_amt,
-                        "partial_sold_cumulative": 0.0,
-                        "realized_profit_usd": 0.0,
-                        "max_price": 0.0,
-                        "status": "open",
-                        "entry_time": datetime.now(timezone.utc),
-                        "wallet_address": wallet_address
-                    })
+                    new_entries.append(
+                        {
+                            "position_id": position_id,
+                            "token_address": b.address,
+                            "ticker": b.symbol or "",
+                            "token_name": b.name or "",
+                            "entry_price": 0.0,
+                            "entry_amount": chain_amt,
+                            "current_amount": chain_amt,
+                            "partial_sold_cumulative": 0.0,
+                            "realized_profit_usd": 0.0,
+                            "max_price": 0.0,
+                            "status": "open",
+                            "entry_time": datetime.now(timezone.utc),
+                            "wallet_address": wallet_address,
+                        }
+                    )
 
                 try:
                     upsert_row_static(
@@ -473,15 +515,16 @@ class DatabaseLogger:
                             "position_id": position_id,
                             "token_address": b.address,
                             "ticker_symbol": b.symbol,
-                            "token_name": b.name, 
+                            "token_name": b.name,
                             "amount_holding": chain_amt,
                             "blockchain": "solana",
                             "status": "open",
                             "entry_time": datetime.now().isoformat(),
                             "wallet_address": wallet_address,
                             "type": "market",
-                            "bot_executed": self.BOT_EXECUTED
-                    })
+                            "bot_executed": self.BOT_EXECUTED,
+                        },
+                    )
                 except Exception as e:
                     logging.error(f"Failed to upsert new position. Error: {e}")
 
@@ -492,20 +535,22 @@ class DatabaseLogger:
             extracted_rows = [r["result"] for r in rows]
             df = pd.DataFrame(extracted_rows)
 
-            df["entry_time"] = pd.to_datetime(df["entry_time"],
-                                              format="mixed",
-                                              errors="coerce")
-            
-            df["next_tradable"] = pd.to_datetime(df["next_tradable"],
-                                              format="mixed",
-                                              errors="coerce")
+            df["entry_time"] = pd.to_datetime(
+                df["entry_time"], format="mixed", errors="coerce"
+            )
+
+            df["next_tradable"] = pd.to_datetime(
+                df["next_tradable"], format="mixed", errors="coerce"
+            )
 
             for i, row in df.iterrows():
                 t_addr = row["token_address"]
 
                 if t_addr not in onchain_bal_map:
                     if row["status"] != "closed":
-                        logging.info(f"Closing position_id={row['position_id']} (no on-chain balance).")
+                        logging.info(
+                            f"Closing position_id={row['position_id']} (no on-chain balance)."
+                        )
                         df.at[i, "status"] = "closed"
 
                     upsert_row_static(
@@ -515,8 +560,8 @@ class DatabaseLogger:
                             "token_address": t_addr,
                             "amount_holding": 0.0,
                             "status": "closed",
-                            "bot_executed": self.BOT_EXECUTED
-                        }
+                            "bot_executed": self.BOT_EXECUTED,
+                        },
                     )
                     continue
 
@@ -538,7 +583,7 @@ class DatabaseLogger:
                     "token_address": t_addr,
                     "amount_holding": chain_amt,
                     "status": df.at[i, "status"],
-                    "bot_executed": self.BOT_EXECUTED
+                    "bot_executed": self.BOT_EXECUTED,
                 }
                 upsert_row_static("positions", update_data)
 
@@ -547,10 +592,8 @@ class DatabaseLogger:
         except Exception as e:
             logging.error(f"Error loading positions from DB: {e}")
             return pd.DataFrame()
-    
-    
-    def load_token_metadata_cache(self):
 
+    def load_token_metadata_cache(self):
         try:
             query = """
                 SELECT token_address, 
@@ -583,6 +626,7 @@ class DatabaseLogger:
 
 if __name__ == "__main__":
     from trader.config import Config
+
     SOL_ADDRESS = "SOL0x1111111111111111111111111111111111111111"
     WALLET_ADDRESS = Config.SNIPER_WALLET_ADDRESS
     TX_SIG = "5fpM4Ae52MDZA219mYuwLHMHq6UE9agzGaYVS9LJMhwWnfAZYGNWGBfgFAWGzM9NV8Px3UcPLwf1rv9jQptvK33A"
