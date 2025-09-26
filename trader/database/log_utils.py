@@ -124,15 +124,21 @@ class DatabaseLogger:
                 max_recorded_price = None
 
         trace = {
-            "entry_time": entry_time.isoformat()
-            if isinstance(entry_time, datetime)
-            else entry_time,
-            "last_trade_time": last_trade_time.isoformat()
-            if isinstance(last_trade_time, datetime)
-            else last_trade_time,
-            "next_tradable": next_tradable.isoformat()
-            if isinstance(next_tradable, datetime)
-            else next_tradable,
+            "entry_time": (
+                entry_time.isoformat()
+                if isinstance(entry_time, datetime)
+                else entry_time
+            ),
+            "last_trade_time": (
+                last_trade_time.isoformat()
+                if isinstance(last_trade_time, datetime)
+                else last_trade_time
+            ),
+            "next_tradable": (
+                next_tradable.isoformat()
+                if isinstance(next_tradable, datetime)
+                else next_tradable
+            ),
             "token_address": token_address,
             "status": trade_status,
             "ticker_symbol": ticker_symbol,

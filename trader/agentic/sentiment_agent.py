@@ -152,9 +152,11 @@ class SentimentAgent:
                     subreddit_name=sr,
                     query=input_payload.token_name,
                     sort="top",
-                    limit=input_payload.max_reddit_posts
-                    if sr != "CryptoCurrency" or sr != "memecoins"
-                    else 3,
+                    limit=(
+                        input_payload.max_reddit_posts
+                        if sr != "CryptoCurrency" or sr != "memecoins"
+                        else 3
+                    ),
                 )
 
                 for p in top_posts:
